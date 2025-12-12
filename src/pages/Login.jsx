@@ -20,71 +20,118 @@ export default function Login() {
         setError('')
 
         try {
-            if (isSignUp) {
-                // Validação Admin Master
-                if (role === 'admin' && adminCode !== MASTER_KEY) {
-                    throw new Error("Código Master inválido! Acesso negado.")
-                }
+            let authUser = null;
 
-                // 1. Criar Usuário na Auth
-                const { data: authData, error: authError } = await supabase.auth.signUp({
+            if (isSignUp) {
+                // Tenta CRIAR usuário
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                 })
-                if (authError) throw authError
 
-                // 2. Criar Perfil com Regra de Aprovação
-                if (authData.user) {
-                    // Admin nasce Aprovado. Outros nascem Pendentes.
-                    const autoApprove = (role === 'admin' && adminCode === MASTER_KEY)
+                if (error) {
+                    // Se o erro for "usuário já existe", tentamos logar com a senha fornecida para recuperar a conta
+                    if (error.message.includes('already registered') || error.message.includes('exists')) {
+                        console.log("Usuário já existe, tentando login para auto-correção...")
+                        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                            email,
+                            password,
+                        })
 
-                    const { error: profileError } = await supabase
-                        .from('profiles')
-                        .insert([{
-                            id: authData.user.id,
-                            full_name: fullName,
-                            role: role,
-                            is_approved: autoApprove
-                        }])
-
-                    if (profileError) console.error('Erro perfil:', profileError)
-                }
-
-                if (role === 'admin') {
-                    alert(`✅ Acesso Master Confirmado!\nBem-vindo ao comando do sistema.`)
+                        if (signInError) {
+                            throw new Error("Este e-mail já está cadastrado, mas a senha informada não confere.")
+                        }
+                        authUser = signInData.user
+                    } else {
+                        throw error
+                    }
                 } else {
-                    alert(`🕒 Cadastro Recebido!\nSeu acesso aguarda aprovação do Administrador.`)
+                    authUser = data.user
                 }
-
-                setIsSignUp(false)
             } else {
-                // LOGIN
+                // LOGIN NORMAL
                 const { data, error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
                 })
                 if (error) throw error
+                authUser = data.user
+            }
 
-                // Validar Aprovação
-                if (data.user) {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('is_approved')
-                        .eq('id', data.user.id)
-                        .single()
+            // --- LÓGICA DE RECUPERAÇÃO E PERFIL ---
+            if (authUser) {
+                // 1. Verificar se é uma tentativa de Master (Admin + Key)
+                // Isso vale tanto para cadastro novo quanto para login (se o campo estiver visivel/preenchido)
+                // Mas no login normal o campo adminCode não aparece, então assumimos isSignUp ou se quisermos permitir "Upgrade" no login, teríamos que mudar a UI.
+                // Por enquanto, vamos assumir que o usuário usa a aba "Criar Conta" para forçar o upgrade se preciso.
+                const isMasterAttempt = (role === 'admin' && adminCode === MASTER_KEY && isSignUp);
 
-                    if (profile && !profile.is_approved) {
-                        await supabase.auth.signOut()
-                        throw new Error("⛔ ACESSO BLOQUEADO\nSua conta ainda não foi aprovada pelo Administrador.")
-                    }
+                // Se tentou ser admin na criação e errou a senha
+                if (role === 'admin' && adminCode !== MASTER_KEY && isSignUp) {
+                    throw new Error("Código Master incorreto!")
+                }
+
+                // 2. Buscar perfil existente para saber o status atual
+                const { data: existingProfile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', authUser.id)
+                    .single()
+
+                // 3. Determinar Novos Valores
+                // Se for Master Attempt -> Vira Admin e Aprovado
+                // Se não existe perfil -> Usa o role selecionado e Pending
+                // Se já existe -> Mantém o que tem (a menos que seja Master Attempt de upgrade)
+
+                let newRole = existingProfile?.role || role
+                let newApproval = existingProfile?.is_approved || false
+                let newName = hasChangedName(fullName, existingProfile?.full_name) ? fullName : (existingProfile?.full_name || 'Usuário')
+
+                if (isMasterAttempt) {
+                    newRole = 'admin'
+                    newApproval = true
+                } else if (!existingProfile) {
+                    // Se resetou o banco, quem logar vira "Pendente" com o cargo que tentou.
+                    // Se for admin sem chave (não deveria acontecer pelo if acima), vira sindico
+                    if (role === 'admin') newRole = 'sindico';
+                    newApproval = false;
+                }
+
+                // 4. Salvar (Upsert)
+                const { error: upsertError } = await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: authUser.id,
+                        full_name: newName,
+                        role: newRole,
+                        is_approved: newApproval
+                    })
+
+                if (upsertError) console.error('Erro ao atualizar perfil:', upsertError)
+
+                // 5. Bloqueio Final
+                if (!newApproval) {
+                    await supabase.auth.signOut()
+                    throw new Error(`⛔ ACESSO BLOQUEADO\nSua conta (${newRole.toUpperCase()}) aguarda aprovação do Admin.`)
+                }
+
+                if (isMasterAttempt) {
+                    alert('👑 Acesso Master Confirmado/Restaurado!')
+                } else if (!existingProfile) {
+                    alert('✅ Cadastro Enviado! Aguarde aprovação.')
                 }
             }
+
         } catch (error) {
             console.error(error)
             setError(error.message || 'Ocorreu um erro.')
         } finally {
             setLoading(false)
         }
+    }
+
+    const hasChangedName = (newN, oldN) => {
+        return newN && newN.length > 0 && newN !== oldN
     }
 
     return (
@@ -177,10 +224,10 @@ export default function Login() {
                         {loading ? (
                             <>
                                 <span className="loading"></span>
-                                {isSignUp ? 'Criando conta...' : 'Entrando...'}
+                                {isSignUp ? 'Processando...' : 'Entrar'}
                             </>
                         ) : (
-                            isSignUp ? 'Criar Conta' : 'Entrar'
+                            isSignUp ? 'Criar / Recuperar Conta' : 'Entrar'
                         )}
                     </button>
 
