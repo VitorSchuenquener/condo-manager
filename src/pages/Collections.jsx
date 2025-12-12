@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { differenceInCalendarDays, parseISO } from 'date-fns'
 
 export default function Collections() {
     // State for Defaulters Monitor
@@ -17,6 +18,39 @@ export default function Collections() {
         fetchData()
     }, [])
 
+    const calculatePenalty = (bill) => {
+        const amount = Number(bill.amount)
+        const dueDate = parseISO(bill.due_date)
+        const today = new Date()
+
+        // Se ainda não venceu (preservar lógica, embora aqui só cheguem atrasados)
+        if (differenceInCalendarDays(today, dueDate) <= 0) {
+            return {
+                original: amount,
+                fine: 0,
+                interest: 0,
+                days: 0,
+                total: amount
+            }
+        }
+
+        const daysOverdue = differenceInCalendarDays(today, dueDate)
+
+        // Multa de 2% (Art. 1336 do Código Civil)
+        const fine = amount * 0.02
+
+        // Juros de 1% ao mês (0,033% ao dia)
+        const interest = amount * (0.01 / 30 * daysOverdue)
+
+        return {
+            original: amount,
+            fine: fine,
+            interest: interest,
+            days: daysOverdue,
+            total: amount + fine + interest
+        }
+    }
+
     const fetchData = async () => {
         setLoading(true)
         try {
@@ -26,26 +60,37 @@ export default function Collections() {
                 .select(`
                     id,
                     amount,
-                    total_amount,
                     due_date,
                     resident_id,
                     residents (id, name, unit_number, block, phone, email)
                 `)
                 .eq('status', 'atrasado')
 
-            // Group by Resident
+            // Group by Resident and Calculate Interest
             const groupedDefaulters = {}
             overdueData?.forEach(bill => {
                 const rid = bill.resident_id
+                const calculations = calculatePenalty(bill)
+
                 if (!groupedDefaulters[rid]) {
                     groupedDefaulters[rid] = {
                         resident: bill.residents,
                         bills: [],
+                        totalOriginal: 0,
+                        totalFine: 0,
+                        totalInterest: 0,
                         totalDebt: 0
                     }
                 }
-                groupedDefaulters[rid].bills.push(bill)
-                groupedDefaulters[rid].totalDebt += Number(bill.total_amount)
+
+                // Adiciona dados calculados à conta para usar depois se precisar
+                groupedDefaulters[rid].bills.push({ ...bill, ...calculations })
+
+                // Soma totais
+                groupedDefaulters[rid].totalOriginal += calculations.original
+                groupedDefaulters[rid].totalFine += calculations.fine
+                groupedDefaulters[rid].totalInterest += calculations.interest
+                groupedDefaulters[rid].totalDebt += calculations.total
             })
             setDefaulters(Object.values(groupedDefaulters))
 
@@ -80,10 +125,10 @@ export default function Collections() {
                 .from('protests')
                 .insert([{
                     resident_id: selectedDefaulter.resident.id,
-                    total_debt: selectedDefaulter.totalDebt,
+                    total_debt: selectedDefaulter.totalDebt, // Valor Já com Juros
                     status: 'notificado',
                     notification_date: new Date().toISOString(),
-                    notes: newProcessNote
+                    notes: newProcessNote + `\n\nCálculo na data: Valor Original: ${formatCurrency(selectedDefaulter.totalOriginal)} | Multa: ${formatCurrency(selectedDefaulter.totalFine)} | Juros: ${formatCurrency(selectedDefaulter.totalInterest)}`
                 }])
 
             if (error) throw error
@@ -126,7 +171,7 @@ export default function Collections() {
         <div className="collections-page">
             <div className="page-header">
                 <h1 className="page-title">Cobranças e Protestos</h1>
-                <p className="page-subtitle">Gestão de inadimplência e processos jurídicos</p>
+                <p className="page-subtitle">Gestão de inadimplência e cálculo de juros</p>
             </div>
 
             {/* Section 1: Defaulters Monitor */}
@@ -153,8 +198,23 @@ export default function Collections() {
                                     <span className="badge badge-danger">{item.bills.length} boletos</span>
                                 </div>
 
-                                <div className="mb-md">
-                                    <p className="text-sm text-gray">Dívida Total</p>
+                                <div className="mb-md py-sm border-t border-b border-gray-light">
+                                    <div className="flex justify-between text-sm mb-xs">
+                                        <span className="text-gray">Valor Original:</span>
+                                        <span>{formatCurrency(item.totalOriginal)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm mb-xs text-danger">
+                                        <span>+ Multa (2%):</span>
+                                        <span>{formatCurrency(item.totalFine)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm mb-xs text-danger">
+                                        <span>+ Juros (1% a.m):</span>
+                                        <span>{formatCurrency(item.totalInterest)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="mb-md text-right">
+                                    <p className="text-xs text-gray uppercase">Total Atualizado</p>
                                     <p className="text-2xl font-bold text-danger">{formatCurrency(item.totalDebt)}</p>
                                 </div>
 
@@ -169,7 +229,7 @@ export default function Collections() {
                                         className="btn btn-sm btn-primary w-full"
                                         onClick={() => handleCreateProcess(item)}
                                     >
-                                        ⚖️ Processar
+                                        ⚖️ Protestar
                                     </button>
                                 </div>
                             </div>
@@ -249,9 +309,24 @@ export default function Collections() {
                             <p className="mb-md">
                                 Confirmar abertura de processo para <strong>{selectedDefaulter?.resident.name}</strong>?
                             </p>
-                            <p className="mb-md">
-                                Valor Total da Dívida: <strong className="text-danger">{formatCurrency(selectedDefaulter?.totalDebt)}</strong>
-                            </p>
+                            <div className="bg-gray-light p-md rounded mb-md text-sm">
+                                <div className="flex justify-between mb-xs">
+                                    <span>Principal:</span>
+                                    <strong>{formatCurrency(selectedDefaulter?.totalOriginal)}</strong>
+                                </div>
+                                <div className="flex justify-between mb-xs text-danger">
+                                    <span>Multa (2%):</span>
+                                    <strong>{formatCurrency(selectedDefaulter?.totalFine)}</strong>
+                                </div>
+                                <div className="flex justify-between mb-xs text-danger">
+                                    <span>Juros (1% a.m):</span>
+                                    <strong>{formatCurrency(selectedDefaulter?.totalInterest)}</strong>
+                                </div>
+                                <div className="flex justify-between pt-xs border-t border-gray font-bold text-lg mt-sm">
+                                    <span>Total a Protestar:</span>
+                                    <span className="text-danger">{formatCurrency(selectedDefaulter?.totalDebt)}</span>
+                                </div>
+                            </div>
 
                             <div className="input-group">
                                 <label className="input-label">Observações Iniciais</label>
