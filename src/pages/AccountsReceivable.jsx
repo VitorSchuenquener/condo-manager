@@ -55,8 +55,9 @@ export default function AccountsReceivable() {
                 .from('accounts_receivable')
                 .insert([{
                     ...formData,
-                    resident_id: formData.resident_id || null, // Converte string vazia para null
-                    total_amount: formData.amount
+                    resident_id: formData.resident_id || null,
+                    amount: parseFloat(formData.amount.replace("R$", "").replace(/\./g, "").replace(",", ".").trim()),
+                    total_amount: parseFloat(formData.amount.replace("R$", "").replace(/\./g, "").replace(",", ".").trim())
                 }])
 
             if (error) throw error
@@ -79,6 +80,15 @@ export default function AccountsReceivable() {
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
+    }
+
+    const handleCurrencyChange = (e) => {
+        let value = e.target.value.replace(/\D/g, "")
+        value = (Number(value) / 100).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL"
+        })
+        setFormData({ ...formData, amount: value })
     }
 
     const markAsReceived = async (id) => {
@@ -255,13 +265,13 @@ export default function AccountsReceivable() {
                                 <div className="input-group">
                                     <label className="input-label">Valor (R$)</label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         name="amount"
                                         required
-                                        step="0.01"
                                         className="input"
                                         value={formData.amount}
-                                        onChange={handleChange}
+                                        onChange={handleCurrencyChange}
+                                        placeholder="R$ 0,00"
                                     />
                                 </div>
 
