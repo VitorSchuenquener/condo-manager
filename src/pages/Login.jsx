@@ -10,6 +10,8 @@ export default function Login() {
 
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [adminCode, setAdminCode] = useState('')
+    const MASTER_KEY = "MASTER123"
 
     const [isSignUp, setIsSignUp] = useState(false)
 
@@ -20,6 +22,8 @@ export default function Login() {
 
         try {
             if (isSignUp) {
+                if (role === 'admin' && adminCode !== MASTER_KEY) throw new Error("Código Master inválido!")
+
                 // 1. Criar Usuário na Auth
                 const { data: authData, error: authError } = await supabase.auth.signUp({
                     email,
@@ -125,6 +129,20 @@ export default function Login() {
                                     <option value="admin">Administrador (Master)</option>
                                 </select>
                             </div>
+
+                            {role === 'admin' && (
+                                <div className="input-group">
+                                    <label className="input-label" style={{ color: 'red' }}>Código de Segurança (Master)</label>
+                                    <input
+                                        type="password"
+                                        className="input"
+                                        placeholder="Digite a chave mestra..."
+                                        value={adminCode}
+                                        onChange={(e) => setAdminCode(e.target.value)}
+                                        style={{ borderColor: 'red' }}
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
 
