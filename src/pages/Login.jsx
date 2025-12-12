@@ -8,18 +8,33 @@ export default function Login() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
+    const [isSignUp, setIsSignUp] = useState(false)
+
     const handleLogin = async (e) => {
         e.preventDefault()
         setLoading(true)
         setError('')
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        })
-
-        if (error) {
-            setError('Email ou senha inválidos')
+        try {
+            if (isSignUp) {
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                })
+                if (error) throw error
+                alert('Conta criada com sucesso! Você já pode entrar.')
+                setIsSignUp(false) // Volta para login para forçar o usuário a entrar com a senha nova
+            } else {
+                const { error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                })
+                if (error) throw error
+            }
+        } catch (error) {
+            console.error(error)
+            setError(error.message || 'Ocorreu um erro. Verifique seus dados.')
+        } finally {
             setLoading(false)
         }
     }
@@ -71,12 +86,27 @@ export default function Login() {
                         {loading ? (
                             <>
                                 <span className="loading"></span>
-                                Entrando...
+                                {isSignUp ? 'Criando conta...' : 'Entrando...'}
                             </>
                         ) : (
-                            'Entrar'
+                            isSignUp ? 'Criar Conta' : 'Entrar'
                         )}
                     </button>
+
+                    <div className="text-center mt-md">
+                        <button
+                            type="button"
+                            className="bg-transparent border-none text-primary cursor-pointer text-sm hover:underline"
+                            onClick={() => {
+                                setIsSignUp(!isSignUp)
+                                setError('')
+                            }}
+                        >
+                            {isSignUp
+                                ? 'Já tem conta? Fazer Login'
+                                : 'Primeiro acesso? Crie sua conta aqui'}
+                        </button>
+                    </div>
                 </form>
 
                 <div className="login-footer">
