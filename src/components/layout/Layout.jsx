@@ -1,4 +1,5 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import './Layout.css'
 
@@ -11,6 +12,24 @@ export default function Layout({ user }) {
         navigate('/login')
     }
 
+    const [userRole, setUserRole] = useState(null)
+
+    // Buscar Role do usuário logado
+    // Buscar Role do usuário logado
+
+    useEffect(() => {
+        if (user) {
+            supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single()
+                .then(({ data }) => {
+                    if (data) setUserRole(data.role)
+                })
+        }
+    }, [user])
+
     const menuItems = [
         { path: '/', label: 'Dashboard', icon: '📊' },
         { path: '/contas-pagar', label: 'Contas a Pagar', icon: '💸' },
@@ -20,6 +39,10 @@ export default function Layout({ user }) {
         { path: '/folha-pagamento', label: 'Folha de Pagamento', icon: '👔' },
         { path: '/relatorios', label: 'Relatórios', icon: '📈' },
     ]
+
+    if (userRole === 'admin') {
+        menuItems.push({ path: '/usuarios', label: 'Usuários (Admin)', icon: '🛡️' })
+    }
 
     return (
         <div className="layout">

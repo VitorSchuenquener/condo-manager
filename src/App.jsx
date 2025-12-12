@@ -11,6 +11,7 @@ import Residents from './pages/Residents'
 import Collections from './pages/Collections'
 import Reports from './pages/Reports'
 import Payroll from './pages/Payroll'
+import AdminUsers from './pages/AdminUsers'
 
 // Layout
 import Layout from './components/layout/Layout'
@@ -65,6 +66,7 @@ function App() {
                     <Route path="cobrancas" element={<Collections />} />
                     <Route path="folha-pagamento" element={<Payroll />} />
                     <Route path="relatorios" element={<Reports />} />
+                    <Route path="usuarios" element={<AdminUsers />} />
                 </Route>
             </Routes>
         </BrowserRouter>

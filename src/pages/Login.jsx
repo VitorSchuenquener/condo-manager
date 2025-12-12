@@ -7,13 +7,12 @@ export default function Login() {
     const [password, setPassword] = useState('')
     const [fullName, setFullName] = useState('')
     const [role, setRole] = useState('sindico')
-
+    const [adminCode, setAdminCode] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    const [adminCode, setAdminCode] = useState('')
-    const MASTER_KEY = "MASTER123"
-
     const [isSignUp, setIsSignUp] = useState(false)
+
+    const MASTER_KEY = "MASTER123"
 
     const handleLogin = async (e) => {
         e.preventDefault()
@@ -22,7 +21,10 @@ export default function Login() {
 
         try {
             if (isSignUp) {
-                if (role === 'admin' && adminCode !== MASTER_KEY) throw new Error("Código Master inválido!")
+                // Validação Admin Master
+                if (role === 'admin' && adminCode !== MASTER_KEY) {
+                    throw new Error("Código Master inválido! Acesso negado.")
+                }
 
                 // 1. Criar Usuário na Auth
                 const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -31,34 +33,55 @@ export default function Login() {
                 })
                 if (authError) throw authError
 
-                // 2. Criar Perfil Público (Audit Trail)
+                // 2. Criar Perfil com Regra de Aprovação
                 if (authData.user) {
+                    // Admin nasce Aprovado. Outros nascem Pendentes.
+                    const autoApprove = (role === 'admin' && adminCode === MASTER_KEY)
+
                     const { error: profileError } = await supabase
                         .from('profiles')
                         .insert([{
                             id: authData.user.id,
                             full_name: fullName,
-                            role: role
+                            role: role,
+                            is_approved: autoApprove
                         }])
 
-                    if (profileError) {
-                        console.error('Erro ao criar perfil:', profileError)
-                        // Não bloqueamos o fluxo, mas logamos o erro
-                    }
+                    if (profileError) console.error('Erro perfil:', profileError)
                 }
 
-                alert(`Conta de ${role === 'sindico' ? 'Síndico' : 'Contador'} criada com sucesso!`)
+                if (role === 'admin') {
+                    alert(`✅ Acesso Master Confirmado!\nBem-vindo ao comando do sistema.`)
+                } else {
+                    alert(`🕒 Cadastro Recebido!\nSeu acesso aguarda aprovação do Administrador.`)
+                }
+
                 setIsSignUp(false)
             } else {
-                const { error } = await supabase.auth.signInWithPassword({
+                // LOGIN
+                const { data, error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
                 })
                 if (error) throw error
+
+                // Validar Aprovação
+                if (data.user) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('is_approved')
+                        .eq('id', data.user.id)
+                        .single()
+
+                    if (profile && !profile.is_approved) {
+                        await supabase.auth.signOut()
+                        throw new Error("⛔ ACESSO BLOQUEADO\nSua conta ainda não foi aprovada pelo Administrador.")
+                    }
+                }
             }
         } catch (error) {
             console.error(error)
-            setError(error.message || 'Ocorreu um erro. Verifique seus dados.')
+            setError(error.message || 'Ocorreu um erro.')
         } finally {
             setLoading(false)
         }
@@ -69,7 +92,7 @@ export default function Login() {
             <div className="login-card">
                 <div className="login-header">
                     <h1 className="login-title">🏢 CondoManager</h1>
-                    <p className="login-subtitle">Sistema Profissional de Gestão de Condomínios</p>
+                    <p className="login-subtitle">Sistema Profissional de Gestão</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="login-form">
