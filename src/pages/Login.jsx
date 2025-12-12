@@ -5,6 +5,9 @@ import './Login.css'
 export default function Login() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
+    const [fullName, setFullName] = useState('')
+    const [role, setRole] = useState('sindico')
+
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
@@ -17,13 +20,31 @@ export default function Login() {
 
         try {
             if (isSignUp) {
-                const { error } = await supabase.auth.signUp({
+                // 1. Criar Usuário na Auth
+                const { data: authData, error: authError } = await supabase.auth.signUp({
                     email,
                     password,
                 })
-                if (error) throw error
-                alert('Conta criada com sucesso! Você já pode entrar.')
-                setIsSignUp(false) // Volta para login para forçar o usuário a entrar com a senha nova
+                if (authError) throw authError
+
+                // 2. Criar Perfil Público (Audit Trail)
+                if (authData.user) {
+                    const { error: profileError } = await supabase
+                        .from('profiles')
+                        .insert([{
+                            id: authData.user.id,
+                            full_name: fullName,
+                            role: role
+                        }])
+
+                    if (profileError) {
+                        console.error('Erro ao criar perfil:', profileError)
+                        // Não bloqueamos o fluxo, mas logamos o erro
+                    }
+                }
+
+                alert(`Conta de ${role === 'sindico' ? 'Síndico' : 'Contador'} criada com sucesso!`)
+                setIsSignUp(false)
             } else {
                 const { error } = await supabase.auth.signInWithPassword({
                     email,
@@ -77,6 +98,35 @@ export default function Login() {
                             required
                         />
                     </div>
+
+                    {isSignUp && (
+                        <>
+                            <div className="input-group">
+                                <label className="input-label">Nome Completo</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="Ex: Vitor Silva"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    required={isSignUp}
+                                />
+                            </div>
+
+                            <div className="input-group">
+                                <label className="input-label">Cargo / Função</label>
+                                <select
+                                    className="select"
+                                    value={role}
+                                    onChange={(e) => setRole(e.target.value)}
+                                >
+                                    <option value="sindico">Síndico</option>
+                                    <option value="contador">Contador</option>
+                                    <option value="admin">Administrador (Master)</option>
+                                </select>
+                            </div>
+                        </>
+                    )}
 
                     <button
                         type="submit"
