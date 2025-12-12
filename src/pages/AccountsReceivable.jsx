@@ -55,7 +55,8 @@ export default function AccountsReceivable() {
                 .from('accounts_receivable')
                 .insert([{
                     ...formData,
-                    total_amount: formData.amount // Inicialmente o total é igual ao valor base
+                    resident_id: formData.resident_id || null, // Converte string vazia para null
+                    total_amount: formData.amount
                 }])
 
             if (error) throw error
@@ -175,14 +176,14 @@ export default function AccountsReceivable() {
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <span className="text-gray">Morador não encontrado</span>
+                                                <span className="badge badge-info">Receita Diversa / Avulsa</span>
                                             )}
                                         </td>
                                         <td>{displayDate(item.due_date)}</td>
                                         <td className="font-medium">{formatCurrency(item.total_amount)}</td>
                                         <td>
                                             <span className={`badge ${item.status === 'pago' ? 'badge-success' :
-                                                    item.status === 'atrasado' ? 'badge-danger' : 'badge-warning'
+                                                item.status === 'atrasado' ? 'badge-danger' : 'badge-warning'
                                                 }`}>
                                                 {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                                             </span>
@@ -221,21 +222,20 @@ export default function AccountsReceivable() {
 
                         <form onSubmit={handleSubmit}>
                             <div className="input-group">
-                                <label className="input-label">Morador</label>
                                 <select
                                     name="resident_id"
-                                    required
                                     className="select"
                                     value={formData.resident_id}
                                     onChange={handleChange}
                                 >
-                                    <option value="">Selecione um morador...</option>
+                                    <option value="">-- Receita Avulsa / Saldo Inicial --</option>
                                     {residents.map(resident => (
                                         <option key={resident.id} value={resident.id}>
                                             {resident.name} - Apto {resident.unit_number} {resident.block ? `(${resident.block})` : ''}
                                         </option>
                                     ))}
                                 </select>
+                                <p className="text-xs text-gray mt-xs">Deixe em branco para receitas gerais (ex: Saldo Inicial, Aluguel Salão)</p>
                             </div>
 
                             <div className="input-group">
