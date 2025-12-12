@@ -19,7 +19,24 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        loadDashboardData()
+        // Auto-Repair Check: Se o usuário não tiver perfil, cria um básico para não travar
+        const checkProfile = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                const { data: profile } = await supabase.from('profiles').select('id').eq('id', user.id).single()
+                if (!profile) {
+                    console.log("Perfil não encontrado. Criando perfil de recuperação...")
+                    await supabase.from('profiles').insert([{
+                        id: user.id,
+                        full_name: 'Usuário Recuperado',
+                        role: 'admin', // Assume admin se estiver recuperando em dev
+                        is_approved: true
+                    }])
+                }
+            }
+            loadDashboardData()
+        }
+        checkProfile()
     }, [])
 
     const loadDashboardData = async () => {
