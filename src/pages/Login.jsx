@@ -94,11 +94,11 @@ export default function Login() {
 
                 if (upsertError) console.error('Upsert warn:', upsertError)
 
-                // --- ZONA DE BLOQUEIO DESATIVADA ---
+                // --- ZONA DE BLOQUEIO ATIVADA ---
                 if (!newApproval) {
-                    console.warn("Usuário não aprovado acessando sistema (recuperação)")
-                    // await supabase.auth.signOut() 
-                    // throw new Error(...)
+                    console.warn("Usuário não aprovado bloqueado.")
+                    await supabase.auth.signOut()
+                    throw new Error("⛔ ACESSO BLOQUEADO\nSua conta aguarda aprovação do Administrador.")
                 }
 
                 if (isMasterAttempt) {
