@@ -11,106 +11,99 @@ export default function Login() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [isSignUp, setIsSignUp] = useState(false)
+    const [successMsg, setSuccessMsg] = useState('')
 
     const MASTER_KEY = "MASTER123"
 
-    const handleLogin = async (e) => {
+    const handleAuth = async (e) => {
         e.preventDefault()
         setLoading(true)
         setError('')
+        setSuccessMsg('')
 
         try {
-            let authUser = null;
-
             if (isSignUp) {
-                // Tenta CRIAR usuário
-                const { data, error } = await supabase.auth.signUp({
+                // --- CADASTRO ---
+
+                // 1. Validação Admin
+                if (role === 'admin' && adminCode !== MASTER_KEY) {
+                    throw new Error("Código Master incorreto!")
+                }
+
+                // 2. Criar Usuário (Auth)
+                const { data: authData, error: authError } = await supabase.auth.signUp({
                     email,
                     password,
                 })
+                if (authError) throw authError
 
-                if (error) {
-                    if (error.message.includes('already registered') || error.message.includes('exists')) {
-                        console.log("Tentando login de recuperação...")
-                        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-                            email,
-                            password,
-                        })
+                if (authData.user) {
+                    // 3. Criar Perfil
+                    const isApproved = (role === 'admin') // Só Admin nasce aprovado
 
-                        if (signInError) throw new Error("Email já existe, senha incorreta.")
-                        authUser = signInData.user
-                    } else {
-                        throw error
+                    const { error: profileError } = await supabase
+                        .from('profiles')
+                        .insert([{
+                            id: authData.user.id,
+                            full_name: fullName,
+                            role: role,
+                            is_approved: isApproved
+                        }])
+
+                    if (profileError) {
+                        // Se der erro no perfil, tenta mostrar (ex: usuario já existe na tabela de perfis)
+                        console.error(profileError)
+                        throw new Error("Erro ao criar perfil. Verifique se o e-mail já está em uso.")
                     }
-                } else {
-                    authUser = data.user
+
+                    // 4. Feedback
+                    if (isApproved) {
+                        alert("👑 Conta Admin criada com sucesso! Entrando...")
+                        // O Login automático acontece se o supabase.auth.signUp já retornar sessão.
+                    } else {
+                        // Se for usuário comum, NÃO DEIXA ENTRAR AUTOMATICAMENTE.
+                        await supabase.auth.signOut()
+                        setSuccessMsg("✅ Cadastro realizado! Sua conta está em análise. Aguarde a aprovação do Administrador.")
+                        setIsSignUp(false) // Volta pro Login
+                        setLoading(false)
+                        return // Para aqui.
+                    }
                 }
             } else {
-                // LOGIN NORMAL
+                // --- LOGIN ---
                 const { data, error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
                 })
                 if (error) throw error
-                authUser = data.user
-            }
 
-            // --- PERFIL E APROVAÇÃO ---
-            if (authUser) {
-                const isMasterAttempt = (role === 'admin' && adminCode === MASTER_KEY && isSignUp);
+                // Validar Aprovação
+                if (data.user) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('is_approved, role')
+                        .eq('id', data.user.id)
+                        .single()
 
-                if (role === 'admin' && adminCode !== MASTER_KEY && isSignUp) {
-                    throw new Error("Código Master incorreto!")
-                }
+                    if (!profile) {
+                        // Caso raro: User existe na Auth mas sem perfil (banco resetado incorretamente)
+                        throw new Error("Perfil não encontrado. Contate o suporte.")
+                    }
 
-                const { data: existingProfile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', authUser.id)
-                    .single()
+                    if (!profile.is_approved) {
+                        await supabase.auth.signOut()
+                        throw new Error("⛔ Sua conta ainda não foi aprovada pelo Administrador.")
+                    }
 
-                let newRole = existingProfile?.role || role
-                let newApproval = existingProfile?.is_approved || false
-                let newName = (fullName && fullName.length > 0) ? fullName : (existingProfile?.full_name || 'Usuário')
-
-                if (isMasterAttempt) {
-                    newRole = 'admin'
-                    newApproval = true
-                } else if (!existingProfile) {
-                    // Reset Profile Logic
-                    if (role === 'admin') newRole = 'sindico';
-                    newApproval = false;
-                }
-
-                // Salvar
-                const { error: upsertError } = await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: authUser.id,
-                        full_name: newName,
-                        role: newRole,
-                        is_approved: newApproval
-                    })
-
-                if (upsertError) console.error('Upsert warn:', upsertError)
-
-                // --- ZONA DE BLOQUEIO ATIVADA ---
-                if (!newApproval) {
-                    console.warn("Usuário não aprovado bloqueado.")
-                    await supabase.auth.signOut()
-                    throw new Error("⛔ ACESSO BLOQUEADO\nSua conta aguarda aprovação do Administrador.")
-                }
-
-                if (isMasterAttempt) {
-                    alert('👑 Admin Master Confirmado!')
-                } else if (!existingProfile && isSignUp) {
-                    alert('✅ Cadastro realizado!')
+                    // Se passou, o App.jsx vai redirecionar pro Dashboard
                 }
             }
-
         } catch (error) {
             console.error(error)
             setError(error.message || 'Ocorreu um erro.')
+            if (isSignUp && error.message.includes('already registered')) {
+                setError('Este e-mail já está cadastrado.')
+            }
         } finally {
             setLoading(false)
         }
@@ -124,28 +117,29 @@ export default function Login() {
                     <p className="login-subtitle">Sistema Profissional de Gestão</p>
                 </div>
 
-                <form onSubmit={handleLogin} className="login-form">
+                <form onSubmit={handleAuth} className="login-form">
                     {error && <div className="alert alert-error">{error}</div>}
+                    {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
                     <div className="input-group">
                         <label className="input-label">Email</label>
-                        <input type="email" className="input" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        <input type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </div>
 
                     <div className="input-group">
                         <label className="input-label">Senha</label>
-                        <input type="password" className="input" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        <input type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
 
                     {isSignUp && (
                         <>
                             <div className="input-group">
                                 <label className="input-label">Nome Completo</label>
-                                <input type="text" className="input" placeholder="Ex: Vitor Silva" value={fullName} onChange={(e) => setFullName(e.target.value)} required={isSignUp} />
+                                <input type="text" className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} required={isSignUp} />
                             </div>
 
                             <div className="input-group">
-                                <label className="input-label">Cargo / Função</label>
+                                <label className="input-label">Cargo</label>
                                 <select className="select" value={role} onChange={(e) => setRole(e.target.value)}>
                                     <option value="sindico">Síndico</option>
                                     <option value="contador">Contador</option>
@@ -155,27 +149,24 @@ export default function Login() {
 
                             {role === 'admin' && (
                                 <div className="input-group">
-                                    <label className="input-label" style={{ color: 'red' }}>Código de Segurança (Master)</label>
-                                    <input type="password" className="input" placeholder="Digite a chave mestra..." value={adminCode} onChange={(e) => setAdminCode(e.target.value)} style={{ borderColor: 'red' }} />
+                                    <label className="input-label text-danger">Chave Mestra</label>
+                                    <input type="password" className="input border-danger" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} />
                                 </div>
                             )}
                         </>
                     )}
 
                     <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-                        {loading ? (isSignUp ? 'Processando...' : 'Entrando...') : (isSignUp ? 'Criar / Recuperar Conta' : 'Entrar')}
+                        {loading ? 'Processando...' : (isSignUp ? 'Cadastrar' : 'Entrar')}
                     </button>
 
                     <div className="text-center mt-md">
-                        <button type="button" className="bg-transparent border-none text-primary cursor-pointer text-sm hover:underline" onClick={() => { setIsSignUp(!isSignUp); setError('') }}>
-                            {isSignUp ? 'Já tem conta? Fazer Login' : 'Primeiro acesso? Crie sua conta aqui'}
+                        <button type="button" className="text-primary hover:underline text-sm border-none bg-transparent cursor-pointer"
+                            onClick={() => { setIsSignUp(!isSignUp); setError(''); setSuccessMsg(''); }}>
+                            {isSignUp ? 'Já tem conta? Fazer Login' : 'Criar Conta'}
                         </button>
                     </div>
                 </form>
-
-                <div className="login-footer">
-                    <p className="text-sm text-gray">Sistema exclusivo para Síndicos e Contadores</p>
-                </div>
             </div>
         </div>
     )
