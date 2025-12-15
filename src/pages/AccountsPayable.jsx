@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useDropzone } from 'react-dropzone'
 
 export default function AccountsPayable() {
     const [expenses, setExpenses] = useState([])
@@ -19,8 +20,13 @@ export default function AccountsPayable() {
         category: 'outros',
         amount: '',
         due_date: '',
-        status: 'pendente'
+        status: 'pendente',
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'pix'
     })
+
+    const [uploadedProof, setUploadedProof] = useState(null)
+    const [uploading, setUploading] = useState(false)
 
     const categories = [
         { value: 'agua', label: 'Água' },
@@ -53,10 +59,52 @@ export default function AccountsPayable() {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+
+        // Validação: Se status = 'pago', exige NF
+        if (formData.status === 'pago' && !uploadedProof) {
+            alert('⚠️ OBRIGATÓRIO: Anexe a Nota Fiscal ou Comprovante para registrar como pago!')
+            return
+        }
+
+        setUploading(true)
         try {
+            let proofUrl = null
+
+            // Upload da NF se status = 'pago'
+            if (formData.status === 'pago' && uploadedProof) {
+                const fileExt = uploadedProof.name.split('.').pop()
+                const fileName = `${Math.random()}.${fileExt}`
+                const filePath = `payment_proofs/${fileName}`
+
+                const { error: uploadError } = await supabase.storage
+                    .from('documents')
+                    .upload(filePath, uploadedProof)
+
+                if (uploadError) throw uploadError
+
+                const { data } = supabase.storage.from('documents').getPublicUrl(filePath)
+                proofUrl = data.publicUrl
+            }
+
+            // Preparar dados para inserção
+            const dataToInsert = {
+                description: formData.description,
+                category: formData.category,
+                amount: parseFloat(formData.amount),
+                due_date: formData.due_date,
+                status: formData.status
+            }
+
+            // Se pago, adicionar dados de pagamento
+            if (formData.status === 'pago') {
+                dataToInsert.payment_date = formData.payment_date
+                dataToInsert.payment_method = formData.payment_method
+                dataToInsert.invoice_url = proofUrl || uploadedProof.name
+            }
+
             const { error } = await supabase
                 .from('accounts_payable')
-                .insert([formData])
+                .insert([dataToInsert])
 
             if (error) throw error
 
@@ -66,15 +114,33 @@ export default function AccountsPayable() {
                 category: 'outros',
                 amount: '',
                 due_date: '',
-                status: 'pendente'
+                status: 'pendente',
+                payment_date: new Date().toISOString().split('T')[0],
+                payment_method: 'pix'
             })
+            setUploadedProof(null)
             fetchExpenses()
-            alert('Conta registrada com sucesso!')
+            alert(formData.status === 'pago' ? '✅ Conta registrada como PAGA com sucesso!' : '✅ Conta registrada com sucesso!')
         } catch (error) {
             console.error('Erro ao salvar:', error)
             alert('Erro ao salvar conta: ' + error.message)
+        } finally {
+            setUploading(false)
         }
     }
+
+    // Dropzone para NF
+    const onDropProof = useCallback(acceptedFiles => {
+        if (acceptedFiles?.length > 0) {
+            setUploadedProof(acceptedFiles[0])
+        }
+    }, [])
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop: onDropProof,
+        multiple: false,
+        accept: { 'image/*': [], 'application/pdf': [] }
+    })
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -274,15 +340,93 @@ export default function AccountsPayable() {
                                 </div>
                                 <div className="input-group">
                                     <label className="input-label">Status Inicial</label>
-                                    <select name="status" className="select" value={formData.status} onChange={handleChange}>
+                                    <select
+                                        name="status"
+                                        className="input"
+                                        value={formData.status}
+                                        onChange={handleChange}
+                                    >
                                         <option value="pendente">Pendente</option>
-                                        <option value="pago">Pago (Requer NF depois)</option>
+                                        <option value="pago">Pago (Lançamento Retroativo)</option>
                                     </select>
                                 </div>
                             </div>
+
+                            {/* Campos adicionais se status = 'pago' */}
+                            {formData.status === 'pago' && (
+                                <div className="bg-blue-50 border-l-4 border-primary p-md mb-md">
+                                    <p className="font-bold mb-sm">📋 Dados do Pagamento</p>
+
+                                    <div className="grid grid-cols-2 gap-md mb-md">
+                                        <div className="input-group">
+                                            <label className="input-label">Data do Pagamento</label>
+                                            <input
+                                                type="date"
+                                                name="payment_date"
+                                                className="input"
+                                                value={formData.payment_date}
+                                                onChange={handleChange}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Forma de Pagamento</label>
+                                            <select
+                                                name="payment_method"
+                                                className="input"
+                                                value={formData.payment_method}
+                                                onChange={handleChange}
+                                            >
+                                                <option value="pix">PIX</option>
+                                                <option value="transferencia">Transferência</option>
+                                                <option value="boleto">Boleto</option>
+                                                <option value="dinheiro">Dinheiro</option>
+                                                <option value="cheque">Cheque</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="input-group">
+                                        <label className="input-label text-danger font-bold">📄 Nota Fiscal / Comprovante (OBRIGATÓRIO)</label>
+                                        <div
+                                            {...getRootProps()}
+                                            className={`border-2 border-dashed rounded p-lg text-center cursor-pointer transition-colors ${isDragActive ? 'border-success bg-green-50' : uploadedProof ? 'border-success bg-green-50' : 'border-danger bg-red-50'
+                                                }`}
+                                        >
+                                            <input {...getInputProps()} />
+                                            {uploadedProof ? (
+                                                <div className="text-success font-medium">
+                                                    ✅ {uploadedProof.name}
+                                                    <p className="text-xs mt-xs">Clique ou arraste outro para substituir</p>
+                                                </div>
+                                            ) : (
+                                                <div className={isDragActive ? 'text-success' : 'text-danger'}>
+                                                    <p className="font-bold mb-xs">⚠️ Anexe a NF ou Comprovante</p>
+                                                    <p className="text-sm">Arraste o arquivo ou clique aqui</p>
+                                                    <p className="text-xs text-gray mt-xs">PDF ou Imagem</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex justify-center gap-md mt-lg">
-                                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Cancelar</button>
-                                <button type="submit" className="btn btn-primary">Registrar Conta</button>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={() => setShowModal(false)}
+                                    disabled={uploading}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary"
+                                    disabled={uploading}
+                                >
+                                    {uploading ? 'Salvando...' : 'Registrar Conta'}
+                                </button>
                             </div>
                         </form>
                     </div>
