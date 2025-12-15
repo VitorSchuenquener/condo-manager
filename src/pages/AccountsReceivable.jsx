@@ -39,7 +39,10 @@ export default function AccountsReceivable() {
 
             if (residentsError) throw residentsError
 
-            setReceivables(receivablesData || [])
+            if (residentsError) throw residentsError
+
+            const processedReceivables = processData(receivablesData || [])
+            setReceivables(processedReceivables)
             setResidents(residentsData || [])
         } catch (error) {
             console.error('Erro ao buscar dados:', error)
@@ -123,12 +126,50 @@ export default function AccountsReceivable() {
         return new Date(dateString).toLocaleDateString('pt-BR') // Ajustado para não usar timezone UTC se gravado como date
     }
 
-    // Função auxiliar para parse de data string local para exibição correta
-    const displayDate = (dateStr) => {
+    // --- LÓGICA FINANCEIRA ---
+    const calculateFinancials = (receivable) => {
+        if (receivable.status === 'pago') return { ...receivable, daysLate: 0, penalty: 0, interest: 0, totalCorrected: receivable.total_amount, statusDisplay: 'pago' }
+
+        const dueDate = new Date(receivable.due_date)
+        // Ajuste de timezone para garantir comparação correta (assumindo vencimento ao final do dia)
+        dueDate.setHours(23, 59, 59, 999)
+
+        const today = new Date()
+        const diffTime = today - dueDate
+        const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        if (daysLate > 0) {
+            // Regra Brasileira de Condomínio:
+            // Multa: 2%
+            // Juros: 1% ao mês (0.0333% ao dia)
+            const originalAmount = receivable.amount
+            const penalty = originalAmount * 0.02 // 2%
+            const interest = originalAmount * (0.000333 * daysLate) // 0.033% ao dia
+            const totalCorrected = originalAmount + penalty + interest
+
+            return {
+                ...receivable,
+                daysLate,
+                penalty,
+                interest,
+                totalCorrected,
+                statusDisplay: 'atrasado',
+                shouldProtest: daysLate > 30 // Sugere protesto após 30 dias
+            }
+        }
+
+        return { ...receivable, daysLate: 0, penalty: 0, interest: 0, totalCorrected: receivable.amount, statusDisplay: receivable.status }
+    }
+
+    const simpleDate = (dateStr) => {
         if (!dateStr) return '-'
-        // Assumindo formato YYYY-MM-DD do banco
         const [year, month, day] = dateStr.split('-')
         return `${day}/${month}/${year}`
+    }
+
+    // Processa os dados brutos do banco e aplica a matemática
+    const processData = (rawData) => {
+        return rawData.map(item => calculateFinancials(item))
     }
 
     if (loading) {
@@ -174,37 +215,60 @@ export default function AccountsReceivable() {
                             </thead>
                             <tbody>
                                 {receivables.map((item) => (
-                                    <tr key={item.id}>
-                                        <td className="font-medium">{item.description}</td>
+                                    <tr key={item.id} className={item.statusDisplay === 'atrasado' ? 'bg-red-50' : ''}>
+                                        <td className="font-medium">
+                                            {item.description}
+                                            {item.statusDisplay === 'atrasado' && (
+                                                <div className="text-xs text-danger font-bold mt-1">
+                                                    ⚠️ {item.daysLate} dias de atraso
+                                                </div>
+                                            )}
+                                        </td>
                                         <td>
                                             {item.residents ? (
                                                 <div className="text-sm">
                                                     <div className="font-medium">{item.residents.name}</div>
                                                     <div className="text-gray">
-                                                        Apto {item.residents.unit_number}
-                                                        {item.residents.block && ` - Bloco ${item.residents.block}`}
+                                                        Casa {item.residents.unit_number}
+                                                        {item.residents.block && ` - ${item.residents.block}`}
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <span className="badge badge-info">Receita Diversa / Avulsa</span>
+                                                <span className="badge badge-info text-xs">Receita Avulsa</span>
                                             )}
                                         </td>
-                                        <td>{displayDate(item.due_date)}</td>
-                                        <td className="font-medium">{formatCurrency(item.total_amount)}</td>
+                                        <td>{simpleDate(item.due_date)}</td>
                                         <td>
-                                            <span className={`badge ${item.status === 'pago' ? 'badge-success' :
-                                                item.status === 'atrasado' ? 'badge-danger' : 'badge-warning'
+                                            <div className="font-medium text-dark">{formatCurrency(item.totalCorrected)}</div>
+                                            {item.daysLate > 0 && item.status !== 'pago' && (
+                                                <div className="text-xs text-gray-500" title={`Multa: ${formatCurrency(item.penalty)} | Juros: ${formatCurrency(item.interest)}`}>
+                                                    Original: {formatCurrency(item.amount)}
+                                                    <br />
+                                                    <span className="text-danger">+ Juros/Multa</span>
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <span className={`badge ${item.statusDisplay === 'pago' ? 'badge-success' :
+                                                item.statusDisplay === 'atrasado' ? 'badge-danger' : 'badge-warning'
                                                 }`}>
-                                                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                                                {item.statusDisplay.toUpperCase()}
                                             </span>
+                                            {item.shouldProtest && item.status !== 'pago' && (
+                                                <div className="mt-xs">
+                                                    <span className="badge badge-dark text-xs animate-pulse">
+                                                        ⚖️ PROTESTAR
+                                                    </span>
+                                                </div>
+                                            )}
                                         </td>
                                         <td>
                                             {item.status !== 'pago' && (
                                                 <button
-                                                    className="btn btn-sm btn-outline btn-success"
+                                                    className="btn btn-sm btn-outline btn-success w-full"
                                                     onClick={() => markAsReceived(item.id)}
                                                 >
-                                                    Receber
+                                                    Receber {formatCurrency(item.totalCorrected)}
                                                 </button>
                                             )}
                                         </td>
