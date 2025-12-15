@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useDropzone } from 'react-dropzone'
+import toast from 'react-hot-toast'
 
 export default function AccountsReceivable() {
     const [receivables, setReceivables] = useState([])
@@ -168,7 +169,7 @@ export default function AccountsReceivable() {
         e.preventDefault()
 
         if (!uploadedProof) {
-            alert('⚠️ OBRIGATÓRIO: Anexe a Nota Fiscal ou Comprovante de Pagamento!')
+            toast.error('⚠️ OBRIGATÓRIO: Anexe a Nota Fiscal ou Comprovante de Pagamento!', { duration: 6000 })
             return
         }
 
@@ -192,10 +193,10 @@ export default function AccountsReceivable() {
             setShowReceiptModal(false)
             setUploadedProof(null)
             fetchData()
-            alert('✅ Recebimento registrado com sucesso!')
+            toast.success('✅ Recebimento registrado com sucesso!', { duration: 5000 })
         } catch (error) {
             console.error('Erro ao processar recebimento:', error)
-            alert('Erro ao processar: ' + error.message)
+            toast.error('Erro ao processar: ' + error.message)
         } finally {
             setUploading(false)
         }
@@ -273,11 +274,11 @@ export default function AccountsReceivable() {
             setBatchProgress(prev => ({ ...prev, isGenerating: false }))
 
             if (errors.length === 0) {
-                alert(`✅ ${created} faturas geradas com sucesso!`)
+                toast.success(`✅ ${created} faturas geradas com sucesso!`, { duration: 5000 })
                 setShowBatchModal(false)
                 fetchData()
             } else {
-                alert(`⚠️ ${created} faturas criadas.\n${errors.length} erros/duplicatas.\n\nVeja o relatório no modal.`)
+                toast.warning(`⚠️ ${created} faturas criadas. ${errors.length} erros/duplicatas. Veja o relatório no modal.`, { duration: 7000 })
             }
 
         } catch (error) {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useDropzone } from 'react-dropzone'
+import toast from 'react-hot-toast'
 
 export default function AccountsPayable() {
     const [expenses, setExpenses] = useState([])
@@ -62,7 +63,7 @@ export default function AccountsPayable() {
 
         // Validação: Se status = 'pago', exige NF
         if (formData.status === 'pago' && !uploadedProof) {
-            alert('⚠️ OBRIGATÓRIO: Anexe a Nota Fiscal ou Comprovante para registrar como pago!')
+            toast.error('⚠️ OBRIGATÓRIO: Anexe a Nota Fiscal ou Comprovante para registrar como pago!', { duration: 6000 })
             return
         }
 
@@ -120,10 +121,10 @@ export default function AccountsPayable() {
             })
             setUploadedProof(null)
             fetchExpenses()
-            alert(formData.status === 'pago' ? '✅ Conta registrada como PAGA com sucesso!' : '✅ Conta registrada com sucesso!')
+            toast.success(formData.status === 'pago' ? '✅ Conta registrada como PAGA com sucesso!' : '✅ Conta registrada com sucesso!', { duration: 5000 })
         } catch (error) {
             console.error('Erro ao salvar:', error)
-            alert('Erro ao salvar conta: ' + error.message)
+            toast.error('Erro ao salvar conta: ' + error.message)
         } finally {
             setUploading(false)
         }
@@ -177,7 +178,7 @@ export default function AccountsPayable() {
 
             setShowPayModal(false)
             fetchExpenses()
-            alert('Pagamento registrado com sucesso!')
+            toast.success('✅ Pagamento registrado com sucesso!', { duration: 5000 })
         } catch (error) {
             console.error('Erro ao processar pagamento:', error)
             alert('Erro ao processar pagamento')

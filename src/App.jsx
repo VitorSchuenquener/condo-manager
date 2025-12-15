@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
+import { Toaster } from 'react-hot-toast'
 
 // Pages
 import Login from './pages/Login'
@@ -80,25 +81,54 @@ function App() {
     }
 
     return (
-        <BrowserRouter>
-            <Routes>
-                <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+        <>
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    duration: 4000,
+                    style: {
+                        background: '#fff',
+                        color: '#333',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                    },
+                    success: {
+                        iconTheme: {
+                            primary: '#10b981',
+                            secondary: '#fff',
+                        },
+                    },
+                    error: {
+                        iconTheme: {
+                            primary: '#ef4444',
+                            secondary: '#fff',
+                        },
+                    },
+                }}
+            />
+            <BrowserRouter>
+                <Routes>
+                    <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
 
-                <Route
-                    path="/"
-                    element={user ? <Layout user={user} /> : <Navigate to="/login" />}
-                >
-                    <Route index element={<Dashboard />} />
-                    <Route path="contas-pagar" element={<AccountsPayable />} />
-                    <Route path="contas-receber" element={<AccountsReceivable />} />
-                    <Route path="moradores" element={<Residents />} />
-                    <Route path="cobrancas" element={<Collections />} />
-                    <Route path="folha-pagamento" element={<Payroll />} />
-                    <Route path="relatorios" element={<Reports />} />
-                    <Route path="usuarios" element={<AdminUsers />} />
-                </Route>
-            </Routes>
-        </BrowserRouter>
+                    <Route
+                        path="/"
+                        element={user ? <Layout user={user} /> : <Navigate to="/login" />}
+                    >
+                        <Route index element={<Dashboard />} />
+                        <Route path="contas-pagar" element={<AccountsPayable />} />
+                        <Route path="contas-receber" element={<AccountsReceivable />} />
+                        <Route path="moradores" element={<Residents />} />
+                        <Route path="cobrancas" element={<Collections />} />
+                        <Route path="folha-pagamento" element={<Payroll />} />
+                        <Route path="relatorios" element={<Reports />} />
+                        <Route path="usuarios" element={<AdminUsers />} />
+                    </Route>
+                </Routes>
+            </BrowserRouter>
+        </>
     )
 }
 
