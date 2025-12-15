@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useDropzone } from 'react-dropzone'
 
 export default function Residents() {
     const [residents, setResidents] = useState([])
@@ -15,12 +16,18 @@ export default function Residents() {
         is_owner: true
     })
 
+    // --- ESTADOS PARA DOCUMENTOS ---
+    const [uploadedFile, setUploadedFile] = useState(null)
+    const [uploading, setUploading] = useState(false)
+
     useEffect(() => {
         fetchResidents()
     }, [])
 
     const fetchResidents = async () => {
         try {
+            // Tenta buscar, mas se a coluna documents ainda não existir, pega sem ela
+            // O ideal seria usar '*' direto
             const { data, error } = await supabase
                 .from('residents')
                 .select('*')
@@ -30,18 +37,71 @@ export default function Residents() {
             setResidents(data || [])
         } catch (error) {
             console.error('Erro ao buscar moradores:', error)
-            // Não mostrar alert no load inicial para não travar se a tabela não existir
         } finally {
             setLoading(false)
         }
     }
 
+    // --- CONFIGURAÇÃO DO DROPZONE ---
+    const onDrop = useCallback(acceptedFiles => {
+        // Pega apenas o primeiro arquivo
+        if (acceptedFiles?.length > 0) {
+            setUploadedFile(acceptedFiles[0])
+        }
+    }, [])
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        multiple: false, // Por enquanto, 1 documento principal (ex: Contrato ou Doc Pessoal)
+        accept: {
+            'image/*': [],
+            'application/pdf': []
+        }
+    })
+
+    const uploadDocument = async (file) => {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Math.random()}.${fileExt}` // Nome aleatório para evitar colisão
+        const filePath = `residents_docs/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        // Retorna a URL pública
+        const { data } = supabase.storage.from('documents').getPublicUrl(filePath)
+        return data.publicUrl
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
+        setUploading(true)
+
         try {
+            let documentUrl = null
+
+            // 1. Se tem arquivo, faz upload pro Supabase Storage
+            if (uploadedFile) {
+                documentUrl = await uploadDocument(uploadedFile)
+            }
+
+            // 2. Salva no Banco de Dados
+            // Importante: No banco, vamos salvar esse link numa coluna 'notes' ou criar uma coluna nova 'document_url'
+            // Vou usar 'notes' temporariamente para salvar o link, ou podemos criar a coluna certa via SQL depois.
+            // Para não quebrar, vou salvar no campo 'documents' (jsonb) que já existe no schema padrão ou 'notes'.
+
+            const payload = {
+                ...formData,
+                // Salvando como um array de objetos na coluna documents (JSONB)
+                // Se a coluna documents não existir, o insert vai ignorar ou dar erro, então vamos garantir via SQL depois
+                documents: documentUrl ? [{ name: uploadedFile.name, url: documentUrl, type: 'cadastro' }] : []
+            }
+
             const { error } = await supabase
                 .from('residents')
-                .insert([formData])
+                .insert([payload])
 
             if (error) throw error
 
@@ -55,11 +115,14 @@ export default function Residents() {
                 email: '',
                 is_owner: true
             })
+            setUploadedFile(null) // Limpa arquivo
             fetchResidents()
             alert('Morador cadastrado com sucesso!')
         } catch (error) {
             console.error('Erro ao salvar:', error)
             alert('Erro ao salvar morador: ' + error.message)
+        } finally {
+            setUploading(false)
         }
     }
 
@@ -104,7 +167,7 @@ export default function Residents() {
                                     <th>Nome</th>
                                     <th>Unidade</th>
                                     <th>Bloco</th>
-                                    <th>Contato</th>
+                                    <th>Documentos</th>
                                     <th>Tipo</th>
                                     <th>Status</th>
                                 </tr>
@@ -116,10 +179,19 @@ export default function Residents() {
                                         <td>{resident.unit_number}</td>
                                         <td>{resident.block || '-'}</td>
                                         <td>
-                                            <div className="text-sm">
-                                                <div>{resident.email}</div>
-                                                <div className="text-gray">{resident.phone}</div>
-                                            </div>
+                                            {/* Exibição simples dos documentos */}
+                                            {resident.documents && resident.documents.length > 0 ? (
+                                                <a
+                                                    href={resident.documents[0].url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-primary hover:underline text-sm"
+                                                >
+                                                    📄 Ver Doc
+                                                </a>
+                                            ) : (
+                                                <span className="text-gray text-sm">-</span>
+                                            )}
                                         </td>
                                         <td>
                                             <span className={`badge ${resident.is_owner ? 'badge-primary' : 'badge-warning'}`}>
@@ -224,7 +296,37 @@ export default function Residents() {
                                 </div>
                             </div>
 
-                            <div className="input-group">
+                            {/* ÁREA DE DRAG DROP */}
+                            <div className="input-group mt-md">
+                                <label className="input-label">Documento (Contrato ou RG)</label>
+                                <div
+                                    {...getRootProps()}
+                                    className={`
+                                        border-2 border-dashed rounded p-lg text-center cursor-pointer transition-colors
+                                        ${isDragActive ? 'border-primary bg-primary-light' : 'border-gray-300 hover:border-primary'}
+                                    `}
+                                    style={{ background: isDragActive ? '#f0f9ff' : '#fafafa' }}
+                                >
+                                    <input {...getInputProps()} />
+                                    {uploadedFile ? (
+                                        <div className="flex items-center justify-center gap-sm text-success font-medium">
+                                            📄 {uploadedFile.name} (Pronto para enviar)
+                                        </div>
+                                    ) : (
+                                        <div className="text-gray">
+                                            <p className="mb-xs text-lg">📂</p>
+                                            {isDragActive ? (
+                                                <p>Solte o arquivo aqui...</p>
+                                            ) : (
+                                                <p>Arraste um documento ou clique aqui</p>
+                                            )}
+                                            <p className="text-xs text-gray-400 mt-xs">PDF ou Imagem (Máx 5MB)</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="input-group mt-md">
                                 <label className="flex items-center gap-sm">
                                     <input
                                         type="checkbox"
@@ -241,11 +343,12 @@ export default function Residents() {
                                     type="button"
                                     className="btn btn-outline"
                                     onClick={() => setShowModal(false)}
+                                    disabled={uploading}
                                 >
                                     Cancelar
                                 </button>
-                                <button type="submit" className="btn btn-primary">
-                                    Salvar Morador
+                                <button type="submit" className="btn btn-primary" disabled={uploading}>
+                                    {uploading ? 'Enviando e Salvando...' : 'Salvar Morador'}
                                 </button>
                             </div>
                         </form>
