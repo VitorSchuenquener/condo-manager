@@ -64,7 +64,11 @@ export default function AdminUsers() {
                                 <td className="font-medium">{p.full_name || 'Sem nome'}</td>
                                 <td>
                                     <span className={`badge ${p.role === 'admin' ? 'badge-primary' : 'badge-info'}`}>
-                                        {p.role ? p.role.toUpperCase() : '-'}
+                                        {{
+                                            admin: 'Administrador',
+                                            sindico: 'Síndico',
+                                            contador: 'Contador'
+                                        }[p.role] || (p.role ? p.role.toUpperCase() : '-')}
                                     </span>
                                 </td>
                                 <td>

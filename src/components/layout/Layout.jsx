@@ -74,7 +74,15 @@ export default function Layout({ user }) {
                         </div>
                         <div className="user-details">
                             <p className="user-name">{userName || user?.email?.split('@')[0]}</p>
-                            <p className="user-role">{userRole ? userRole.toUpperCase() : 'Carregando...'}</p>
+                            <p className="user-role">
+                                {userRole ? (
+                                    {
+                                        admin: 'Administrador',
+                                        sindico: 'Síndico',
+                                        contador: 'Contador'
+                                    }[userRole] || userRole.toUpperCase()
+                                ) : 'Carregando...'}
+                            </p>
                         </div>
                     </div>
                     <button onClick={handleLogout} className="btn-logout">
