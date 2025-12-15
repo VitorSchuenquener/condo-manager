@@ -13,19 +13,20 @@ export default function Layout({ user }) {
     }
 
     const [userRole, setUserRole] = useState(null)
-
-    // Buscar Role do usuário logado
-    // Buscar Role do usuário logado
+    const [userName, setUserName] = useState('')
 
     useEffect(() => {
         if (user) {
             supabase
                 .from('profiles')
-                .select('role')
+                .select('role, full_name')
                 .eq('id', user.id)
                 .single()
                 .then(({ data }) => {
-                    if (data) setUserRole(data.role)
+                    if (data) {
+                        setUserRole(data.role)
+                        setUserName(data.full_name)
+                    }
                 })
         }
     }, [user])
@@ -72,8 +73,8 @@ export default function Layout({ user }) {
                             {user?.email?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div className="user-details">
-                            <p className="user-name">{user?.email?.split('@')[0] || 'Usuário'}</p>
-                            <p className="user-role">Administrador</p>
+                            <p className="user-name">{userName || user?.email?.split('@')[0]}</p>
+                            <p className="user-role">{userRole ? userRole.toUpperCase() : 'Carregando...'}</p>
                         </div>
                     </div>
                     <button onClick={handleLogout} className="btn-logout">
