@@ -29,6 +29,22 @@ export default function AccountsReceivable() {
     const [uploadedProof, setUploadedProof] = useState(null)
     const [uploading, setUploading] = useState(false)
 
+    // Estados do Modal de Geração em Lote
+    const [showBatchModal, setShowBatchModal] = useState(false)
+    const [batchData, setBatchData] = useState({
+        description: '',
+        amount: '',
+        due_date: '',
+        filter: 'todos' // todos, proprietarios, inquilinos
+    })
+    const [batchProgress, setBatchProgress] = useState({
+        isGenerating: false,
+        current: 0,
+        total: 0,
+        created: 0,
+        errors: []
+    })
+
     useEffect(() => {
         fetchData()
     }, [])
@@ -185,6 +201,92 @@ export default function AccountsReceivable() {
         }
     }
 
+    // --- GERAÇÃO EM LOTE ---
+    const handleBatchGeneration = async () => {
+        if (!batchData.description || !batchData.amount || !batchData.due_date) {
+            alert('Preencha todos os campos obrigatórios!')
+            return
+        }
+
+        setBatchProgress({ isGenerating: true, current: 0, total: 0, created: 0, errors: [] })
+
+        try {
+            // 1. Filtrar moradores conforme seleção
+            let targetResidents = residents
+            if (batchData.filter === 'proprietarios') {
+                targetResidents = residents.filter(r => r.is_owner)
+            } else if (batchData.filter === 'inquilinos') {
+                targetResidents = residents.filter(r => !r.is_owner)
+            }
+
+            setBatchProgress(prev => ({ ...prev, total: targetResidents.length }))
+
+            // 2. Verificar duplicatas (mesma descrição e vencimento)
+            const { data: existing } = await supabase
+                .from('accounts_receivable')
+                .select('resident_id')
+                .eq('description', batchData.description)
+                .eq('due_date', batchData.due_date)
+
+            const existingIds = new Set(existing?.map(e => e.resident_id) || [])
+
+            // 3. Gerar faturas
+            const amountValue = parseFloat(batchData.amount.replace("R$", "").replace(/\./g, "").replace(",", ".").trim())
+            let created = 0
+            const errors = []
+
+            for (let i = 0; i < targetResidents.length; i++) {
+                const resident = targetResidents[i]
+
+                // Pular se já existe
+                if (existingIds.has(resident.id)) {
+                    errors.push(`${resident.name}: Fatura já existe`)
+                    setBatchProgress(prev => ({ ...prev, current: i + 1 }))
+                    continue
+                }
+
+                try {
+                    const { error } = await supabase
+                        .from('accounts_receivable')
+                        .insert([{
+                            resident_id: resident.id,
+                            description: batchData.description,
+                            amount: amountValue,
+                            total_amount: amountValue,
+                            due_date: batchData.due_date,
+                            status: 'pendente'
+                        }])
+
+                    if (error) throw error
+                    created++
+                } catch (err) {
+                    errors.push(`${resident.name}: ${err.message}`)
+                }
+
+                setBatchProgress(prev => ({ ...prev, current: i + 1, created, errors }))
+
+                // Pequeno delay para não sobrecarregar o banco
+                await new Promise(resolve => setTimeout(resolve, 50))
+            }
+
+            // 4. Finalizar
+            setBatchProgress(prev => ({ ...prev, isGenerating: false }))
+
+            if (errors.length === 0) {
+                alert(`✅ ${created} faturas geradas com sucesso!`)
+                setShowBatchModal(false)
+                fetchData()
+            } else {
+                alert(`⚠️ ${created} faturas criadas.\n${errors.length} erros/duplicatas.\n\nVeja o relatório no modal.`)
+            }
+
+        } catch (error) {
+            console.error('Erro na geração em lote:', error)
+            alert('Erro ao gerar faturas: ' + error.message)
+            setBatchProgress(prev => ({ ...prev, isGenerating: false }))
+        }
+    }
+
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
@@ -331,12 +433,20 @@ export default function AccountsReceivable() {
                         <option value="pago">Pagos</option>
                     </select>
                 </div>
-                <button
-                    className="btn btn-success whitespace-nowrap"
-                    onClick={() => setShowModal(true)}
-                >
-                    + Nova Receita
-                </button>
+                <div className="flex gap-sm">
+                    <button
+                        className="btn btn-primary whitespace-nowrap"
+                        onClick={() => setShowBatchModal(true)}
+                    >
+                        📋 Gerar Faturas
+                    </button>
+                    <button
+                        className="btn btn-success whitespace-nowrap"
+                        onClick={() => setShowModal(true)}
+                    >
+                        + Nova Receita
+                    </button>
+                </div>
             </div>
 
             <div className="card">
@@ -649,6 +759,139 @@ export default function AccountsReceivable() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Geração em Lote */}
+            {showBatchModal && (
+                <div className="modal-overlay">
+                    <div className="modal" style={{ maxWidth: '600px' }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">📋 Geração em Lote de Faturas</h2>
+                            <button className="modal-close" onClick={() => setShowBatchModal(false)}>&times;</button>
+                        </div>
+
+                        <div className="p-md">
+                            <div className="input-group">
+                                <label className="input-label">Descrição</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={batchData.description}
+                                    onChange={(e) => setBatchData({ ...batchData, description: e.target.value })}
+                                    placeholder="Ex: Condomínio Janeiro/2025"
+                                    disabled={batchProgress.isGenerating}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-md">
+                                <div className="input-group">
+                                    <label className="input-label">Valor (R$)</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={batchData.amount}
+                                        onChange={(e) => {
+                                            let value = e.target.value.replace(/\D/g, "")
+                                            value = (Number(value) / 100).toLocaleString("pt-BR", {
+                                                style: "currency",
+                                                currency: "BRL"
+                                            })
+                                            setBatchData({ ...batchData, amount: value })
+                                        }}
+                                        placeholder="R$ 0,00"
+                                        disabled={batchProgress.isGenerating}
+                                    />
+                                </div>
+
+                                <div className="input-group">
+                                    <label className="input-label">Vencimento</label>
+                                    <input
+                                        type="date"
+                                        className="input"
+                                        value={batchData.due_date}
+                                        onChange={(e) => setBatchData({ ...batchData, due_date: e.target.value })}
+                                        disabled={batchProgress.isGenerating}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="input-group">
+                                <label className="input-label">Aplicar para</label>
+                                <select
+                                    className="input"
+                                    value={batchData.filter}
+                                    onChange={(e) => setBatchData({ ...batchData, filter: e.target.value })}
+                                    disabled={batchProgress.isGenerating}
+                                >
+                                    <option value="todos">Todos os moradores</option>
+                                    <option value="proprietarios">Apenas Proprietários</option>
+                                    <option value="inquilinos">Apenas Inquilinos</option>
+                                </select>
+                            </div>
+
+                            {/* Preview */}
+                            {!batchProgress.isGenerating && batchProgress.total === 0 && (
+                                <div className="bg-blue-50 border-l-4 border-primary p-md">
+                                    <p className="text-sm font-bold mb-xs">📊 Preview</p>
+                                    <p className="text-sm">
+                                        {batchData.filter === 'todos' && `${residents.length} faturas serão criadas`}
+                                        {batchData.filter === 'proprietarios' && `${residents.filter(r => r.is_owner).length} faturas (proprietários)`}
+                                        {batchData.filter === 'inquilinos' && `${residents.filter(r => !r.is_owner).length} faturas (inquilinos)`}
+                                    </p>
+                                    <p className="text-xs text-gray mt-xs">
+                                        ⚠️ Duplicatas serão automaticamente ignoradas
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Barra de Progresso */}
+                            {batchProgress.isGenerating && (
+                                <div className="bg-gray-50 p-md rounded">
+                                    <p className="text-sm font-bold mb-xs">Gerando faturas...</p>
+                                    <div className="w-full bg-gray-200 rounded-full h-4 mb-xs">
+                                        <div
+                                            className="bg-primary h-4 rounded-full transition-all"
+                                            style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                    <p className="text-xs text-gray">
+                                        {batchProgress.current} / {batchProgress.total} processados | {batchProgress.created} criadas
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Relatório de Erros */}
+                            {!batchProgress.isGenerating && batchProgress.errors.length > 0 && (
+                                <div className="bg-yellow-50 border-l-4 border-warning p-md max-h-40 overflow-y-auto">
+                                    <p className="text-sm font-bold mb-xs">⚠️ Avisos ({batchProgress.errors.length})</p>
+                                    {batchProgress.errors.slice(0, 10).map((err, idx) => (
+                                        <p key={idx} className="text-xs text-gray">{err}</p>
+                                    ))}
+                                    {batchProgress.errors.length > 10 && (
+                                        <p className="text-xs text-gray mt-xs">+ {batchProgress.errors.length - 10} mais...</p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-sm mt-lg">
+                                <button
+                                    className="btn btn-outline"
+                                    onClick={() => setShowBatchModal(false)}
+                                    disabled={batchProgress.isGenerating}
+                                >
+                                    {batchProgress.isGenerating ? 'Aguarde...' : 'Cancelar'}
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleBatchGeneration}
+                                    disabled={batchProgress.isGenerating || !batchData.description || !batchData.amount || !batchData.due_date}
+                                >
+                                    {batchProgress.isGenerating ? 'Gerando...' : '✅ Gerar Faturas'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
