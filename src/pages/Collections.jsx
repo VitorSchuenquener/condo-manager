@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { differenceInCalendarDays, parseISO } from 'date-fns'
 
 export default function Collections() {
     // State for Defaulters Monitor
@@ -19,56 +18,64 @@ export default function Collections() {
     }, [])
 
     const calculatePenalty = (bill) => {
-        const amount = Number(bill.amount)
-        const dueDate = parseISO(bill.due_date)
-        const today = new Date()
+        const dueDate = new Date(bill.due_date)
+        dueDate.setHours(23, 59, 59, 999)
 
-        // Se ainda não venceu (preservar lógica, embora aqui só cheguem atrasados)
-        if (differenceInCalendarDays(today, dueDate) <= 0) {
+        const today = new Date()
+        const diffTime = today - dueDate
+        const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        if (daysLate <= 0) {
             return {
-                original: amount,
+                original: bill.amount,
                 fine: 0,
                 interest: 0,
                 days: 0,
-                total: amount
+                total: bill.amount
             }
         }
 
-        const daysOverdue = differenceInCalendarDays(today, dueDate)
-
-        // Multa de 2% (Art. 1336 do Código Civil)
-        const fine = amount * 0.02
-
-        // Juros de 1% ao mês (0,033% ao dia)
-        const interest = amount * (0.01 / 30 * daysOverdue)
+        // Regra Brasileira: Multa 2% + Juros 1% ao mês (0.033% ao dia)
+        const originalAmount = bill.amount
+        const fine = originalAmount * 0.02
+        const interest = originalAmount * (0.000333 * daysLate)
+        const total = originalAmount + fine + interest
 
         return {
-            original: amount,
+            original: originalAmount,
             fine: fine,
             interest: interest,
-            days: daysOverdue,
-            total: amount + fine + interest
+            days: daysLate,
+            total: total
         }
     }
 
     const fetchData = async () => {
         setLoading(true)
         try {
-            // 1. Fetch Overdue Accounts
+            // 1. Buscar TODAS as contas pendentes (não pagas)
             const { data: overdueData } = await supabase
                 .from('accounts_receivable')
                 .select(`
                     id,
                     amount,
                     due_date,
+                    description,
                     resident_id,
                     residents (id, name, unit_number, block, phone, email)
                 `)
-                .eq('status', 'atrasado')
+                .eq('status', 'pendente')
 
-            // Group by Resident and Calculate Interest
+            // 2. Filtrar apenas as que estão REALMENTE atrasadas
+            const today = new Date()
+            const overdueOnly = overdueData?.filter(bill => {
+                const dueDate = new Date(bill.due_date)
+                return today > dueDate
+            }) || []
+
+            // 3. Agrupar por morador e calcular juros
             const groupedDefaulters = {}
-            overdueData?.forEach(bill => {
+            overdueOnly.forEach(bill => {
                 const rid = bill.resident_id
                 const calculations = calculatePenalty(bill)
 
@@ -83,15 +90,13 @@ export default function Collections() {
                     }
                 }
 
-                // Adiciona dados calculados à conta para usar depois se precisar
                 groupedDefaulters[rid].bills.push({ ...bill, ...calculations })
-
-                // Soma totais
                 groupedDefaulters[rid].totalOriginal += calculations.original
                 groupedDefaulters[rid].totalFine += calculations.fine
                 groupedDefaulters[rid].totalInterest += calculations.interest
                 groupedDefaulters[rid].totalDebt += calculations.total
             })
+
             setDefaulters(Object.values(groupedDefaulters))
 
             // 2. Fetch Active Protests
@@ -167,11 +172,44 @@ export default function Collections() {
 
     if (loading) return <div className="loading-container"><div className="loading"></div></div>
 
+    // KPIs Calculados
+    const totalDefaulters = defaulters.length
+    const totalDebtAmount = defaulters.reduce((sum, d) => sum + d.totalDebt, 0)
+    const criticalCases = defaulters.filter(d => {
+        const maxDays = Math.max(...d.bills.map(b => b.days))
+        return maxDays > 30
+    }).length
+
     return (
         <div className="collections-page">
             <div className="page-header">
                 <h1 className="page-title">Cobranças e Protestos</h1>
                 <p className="page-subtitle">Gestão de inadimplência e cálculo de juros</p>
+            </div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-3 gap-md mb-lg">
+                <div className="card p-md flex items-center justify-between border-l-4 border-warning">
+                    <div>
+                        <p className="text-gray text-sm font-medium">Inadimplentes</p>
+                        <p className="text-2xl font-bold text-dark">{totalDefaulters}</p>
+                    </div>
+                    <div className="text-3xl">🚨</div>
+                </div>
+                <div className="card p-md flex items-center justify-between border-l-4 border-danger">
+                    <div>
+                        <p className="text-gray text-sm font-medium">Total em Atraso</p>
+                        <p className="text-2xl font-bold text-danger">{formatCurrency(totalDebtAmount)}</p>
+                    </div>
+                    <div className="text-3xl">💰</div>
+                </div>
+                <div className="card p-md flex items-center justify-between border-l-4 border-dark">
+                    <div>
+                        <p className="text-gray text-sm font-medium">Críticos (&gt;30 dias)</p>
+                        <p className="text-2xl font-bold text-dark">{criticalCases}</p>
+                    </div>
+                    <div className="text-3xl">⚖️</div>
+                </div>
             </div>
 
             {/* Section 1: Defaulters Monitor */}
