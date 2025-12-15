@@ -315,15 +315,16 @@ export default function Residents() {
                             </div>
 
                             <div className="input-group mt-md">
-                                <label className="flex items-center gap-sm">
-                                    <input
-                                        type="checkbox"
-                                        name="is_owner"
-                                        checked={formData.is_owner}
-                                        onChange={handleChange}
-                                    />
-                                    <span>É proprietário?</span>
-                                </label>
+                                <label className="input-label">Tipo de Ocupação</label>
+                                <select
+                                    name="is_owner"
+                                    className="input"
+                                    value={formData.is_owner}
+                                    onChange={(e) => setFormData({ ...formData, is_owner: e.target.value === 'true' })}
+                                >
+                                    <option value="true">🏠 Proprietário (Dono do Imóvel)</option>
+                                    <option value="false">👤 Inquilino (Aluguel)</option>
+                                </select>
                             </div>
 
                             <div className="flex justify-center gap-md mt-lg">
