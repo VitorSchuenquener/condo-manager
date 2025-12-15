@@ -272,44 +272,6 @@ export default function Collections() {
                 </div>
             </div>
 
-            {/* Guia Visual do Fluxo de Protesto */}
-            <div className="card p-md mb-lg bg-blue-50 border-l-4 border-primary">
-                <h3 className="font-bold mb-sm flex items-center gap-sm">
-                    <span>📚</span> Como Funciona o Processo de Protesto
-                </h3>
-                <div className="flex items-center justify-between gap-sm text-sm">
-                    <div className="flex-1 text-center">
-                        <div className="text-2xl mb-xs">📧</div>
-                        <div className="font-bold">1. Notificar</div>
-                        <div className="text-xs text-gray">Enviar carta AR</div>
-                    </div>
-                    <div className="text-gray text-xl">→</div>
-                    <div className="flex-1 text-center">
-                        <div className="text-2xl mb-xs">⏳</div>
-                        <div className="font-bold">2. Aguardar</div>
-                        <div className="text-xs text-gray">10 dias úteis</div>
-                    </div>
-                    <div className="text-gray text-xl">→</div>
-                    <div className="flex-1 text-center">
-                        <div className="text-2xl mb-xs">📤</div>
-                        <div className="font-bold">3. Cartório</div>
-                        <div className="text-xs text-gray">Enviar docs</div>
-                    </div>
-                    <div className="text-gray text-xl">→</div>
-                    <div className="flex-1 text-center">
-                        <div className="text-2xl mb-xs">⚖️</div>
-                        <div className="font-bold">4. Protestar</div>
-                        <div className="text-xs text-gray">Serasa/SPC</div>
-                    </div>
-                    <div className="text-gray text-xl">→</div>
-                    <div className="flex-1 text-center">
-                        <div className="text-2xl mb-xs">✅</div>
-                        <div className="font-bold">5. Quitar</div>
-                        <div className="text-xs text-gray">Dar baixa</div>
-                    </div>
-                </div>
-            </div>
-
             {/* Section 1: Defaulters Monitor */}
             <div className="section mb-xl">
                 <h2 className="text-lg font-bold mb-md flex items-center gap-sm">
@@ -443,18 +405,21 @@ export default function Collections() {
                 </div>
             </div>
 
-            {/* Modal de Checklist (Educativo) */}
+            {/* Modal de Checklist */}
             {showChecklistModal && (
                 <div className="modal-overlay">
                     <div className="modal">
                         <div className="modal-header">
-                            <h2 className="modal-title">⚖️ Checklist para Protesto</h2>
+                            <h2 className="modal-title">⚖️ Checklist de Protesto</h2>
                             <button className="modal-close" onClick={() => setShowChecklistModal(false)}>&times;</button>
                         </div>
                         <div className="p-md">
-                            <div className="bg-yellow-50 border-l-4 border-warning p-md mb-md">
-                                <p className="font-bold mb-xs">⚠️ Atenção Legal</p>
-                                <p className="text-sm">Antes de protestar, você DEVE cumprir os seguintes requisitos legais:</p>
+                            <div className="bg-blue-50 border-l-4 border-primary p-md mb-md">
+                                <p className="text-sm">
+                                    <strong>Morador:</strong> {selectedDefaulter?.resident.name}<br />
+                                    <strong>Valor Total:</strong> {formatCurrency(selectedDefaulter?.totalDebt)}<br />
+                                    <strong>Dias de Atraso:</strong> {Math.max(...(selectedDefaulter?.bills.map(b => b.days) || [0]))} dias
+                                </p>
                             </div>
 
                             <div className="space-y-sm mb-md">
@@ -466,8 +431,7 @@ export default function Collections() {
                                         className="mt-1"
                                     />
                                     <div>
-                                        <div className="font-bold">📧 Carta de Cobrança Enviada (com AR)</div>
-                                        <div className="text-xs text-gray">Morador deve ser notificado por escrito com Aviso de Recebimento</div>
+                                        <div className="font-bold">📧 Carta de Cobrança (AR)</div>
                                     </div>
                                 </label>
 
@@ -479,8 +443,7 @@ export default function Collections() {
                                         className="mt-1"
                                     />
                                     <div>
-                                        <div className="font-bold">⏳ Prazo de 10 Dias Úteis Cumprido</div>
-                                        <div className="text-xs text-gray">Aguardar 10 dias úteis após recebimento da carta para pagamento voluntário</div>
+                                        <div className="font-bold">⏳ Prazo de 10 Dias Úteis</div>
                                     </div>
                                 </label>
 
@@ -492,8 +455,7 @@ export default function Collections() {
                                         className="mt-1"
                                     />
                                     <div>
-                                        <div className="font-bold">📄 Documentos Preparados</div>
-                                        <div className="text-xs text-gray">Contrato, boletos, comprovantes de cobrança e AR da carta</div>
+                                        <div className="font-bold">📄 Documentação Completa</div>
                                     </div>
                                 </label>
 
@@ -505,19 +467,10 @@ export default function Collections() {
                                         className="mt-1"
                                     />
                                     <div>
-                                        <div className="font-bold">💰 Valor Atualizado Calculado</div>
-                                        <div className="text-xs text-gray">✅ Sistema calcula automaticamente (Multa 2% + Juros 1% a.m)</div>
+                                        <div className="font-bold">💰 Valor Atualizado</div>
+                                        <div className="text-xs text-gray">✅ Calculado automaticamente</div>
                                     </div>
                                 </label>
-                            </div>
-
-                            <div className="bg-blue-50 border-l-4 border-primary p-md mb-md">
-                                <p className="font-bold mb-xs">📚 Informação</p>
-                                <p className="text-sm">
-                                    <strong>Morador:</strong> {selectedDefaulter?.resident.name}<br />
-                                    <strong>Valor Total:</strong> {formatCurrency(selectedDefaulter?.totalDebt)}<br />
-                                    <strong>Dias de Atraso:</strong> {Math.max(...(selectedDefaulter?.bills.map(b => b.days) || [0]))} dias
-                                </p>
                             </div>
 
                             <div className="flex justify-end gap-sm">
@@ -527,7 +480,7 @@ export default function Collections() {
                                     onClick={proceedToCreateProcess}
                                     disabled={!checklist.carta_enviada || !checklist.prazo_cumprido || !checklist.documentos_anexados}
                                 >
-                                    Continuar para Protesto
+                                    Continuar
                                 </button>
                             </div>
                         </div>
