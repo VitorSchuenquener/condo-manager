@@ -10,12 +10,61 @@ export default function Collections() {
 
     const [loading, setLoading] = useState(true)
     const [showProcessModal, setShowProcessModal] = useState(false)
+    const [showChecklistModal, setShowChecklistModal] = useState(false)
     const [selectedDefaulter, setSelectedDefaulter] = useState(null)
+    const [selectedProcess, setSelectedProcess] = useState(null)
     const [newProcessNote, setNewProcessNote] = useState('')
+
+    // Checklist de Protesto
+    const [checklist, setChecklist] = useState({
+        carta_enviada: false,
+        prazo_cumprido: false,
+        documentos_anexados: false,
+        valor_calculado: true // Sempre true pois calculamos automaticamente
+    })
 
     useEffect(() => {
         fetchData()
     }, [])
+
+    // Dicionário de Status com Explicações
+    const statusInfo = {
+        'notificado': {
+            label: 'Notificado',
+            color: 'warning',
+            icon: '📧',
+            description: 'Morador foi avisado por escrito sobre a dívida (carta com AR)',
+            nextStep: 'Aguardar 10 dias úteis para pagamento voluntário'
+        },
+        'aguardando_prazo': {
+            label: 'Aguardando Prazo',
+            color: 'info',
+            icon: '⏳',
+            description: 'Aguardando 10 dias úteis para pagamento após notificação',
+            nextStep: 'Se não pagar, enviar ao cartório de protesto'
+        },
+        'enviado_cartorio': {
+            label: 'Enviado ao Cartório',
+            color: 'primary',
+            icon: '📤',
+            description: 'Documentação enviada ao cartório de protesto de títulos',
+            nextStep: 'Cartório irá protestar o título em 3-5 dias úteis'
+        },
+        'protestado': {
+            label: 'Protestado',
+            color: 'danger',
+            icon: '⚖️',
+            description: 'Nome incluído no cadastro de inadimplentes (Serasa/SPC)',
+            nextStep: 'Aguardar pagamento ou iniciar ação judicial'
+        },
+        'quitado': {
+            label: 'Quitado',
+            color: 'success',
+            icon: '✅',
+            description: 'Dívida paga e processo encerrado',
+            nextStep: 'Solicitar baixa do protesto no cartório'
+        }
+    }
 
     const calculatePenalty = (bill) => {
         const dueDate = new Date(bill.due_date)
@@ -119,6 +168,17 @@ export default function Collections() {
 
     const handleCreateProcess = (defaulter) => {
         setSelectedDefaulter(defaulter)
+        setChecklist({
+            carta_enviada: false,
+            prazo_cumprido: false,
+            documentos_anexados: false,
+            valor_calculado: true
+        })
+        setShowChecklistModal(true)
+    }
+
+    const proceedToCreateProcess = () => {
+        setShowChecklistModal(false)
         setShowProcessModal(true)
     }
 
@@ -212,6 +272,44 @@ export default function Collections() {
                 </div>
             </div>
 
+            {/* Guia Visual do Fluxo de Protesto */}
+            <div className="card p-md mb-lg bg-blue-50 border-l-4 border-primary">
+                <h3 className="font-bold mb-sm flex items-center gap-sm">
+                    <span>📚</span> Como Funciona o Processo de Protesto
+                </h3>
+                <div className="flex items-center justify-between gap-sm text-sm">
+                    <div className="flex-1 text-center">
+                        <div className="text-2xl mb-xs">📧</div>
+                        <div className="font-bold">1. Notificar</div>
+                        <div className="text-xs text-gray">Enviar carta AR</div>
+                    </div>
+                    <div className="text-gray text-xl">→</div>
+                    <div className="flex-1 text-center">
+                        <div className="text-2xl mb-xs">⏳</div>
+                        <div className="font-bold">2. Aguardar</div>
+                        <div className="text-xs text-gray">10 dias úteis</div>
+                    </div>
+                    <div className="text-gray text-xl">→</div>
+                    <div className="flex-1 text-center">
+                        <div className="text-2xl mb-xs">📤</div>
+                        <div className="font-bold">3. Cartório</div>
+                        <div className="text-xs text-gray">Enviar docs</div>
+                    </div>
+                    <div className="text-gray text-xl">→</div>
+                    <div className="flex-1 text-center">
+                        <div className="text-2xl mb-xs">⚖️</div>
+                        <div className="font-bold">4. Protestar</div>
+                        <div className="text-xs text-gray">Serasa/SPC</div>
+                    </div>
+                    <div className="text-gray text-xl">→</div>
+                    <div className="flex-1 text-center">
+                        <div className="text-2xl mb-xs">✅</div>
+                        <div className="font-bold">5. Quitar</div>
+                        <div className="text-xs text-gray">Dar baixa</div>
+                    </div>
+                </div>
+            </div>
+
             {/* Section 1: Defaulters Monitor */}
             <div className="section mb-xl">
                 <h2 className="text-lg font-bold mb-md flex items-center gap-sm">
@@ -298,42 +396,144 @@ export default function Collections() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {processes.map(proc => (
-                                        <tr key={proc.id}>
-                                            <td>
-                                                <div className="font-medium">{proc.residents?.name}</div>
-                                                <div className="text-xs text-gray">
-                                                    Unid. {proc.residents?.unit_number}
-                                                </div>
-                                            </td>
-                                            <td>{formatDate(proc.notification_date)}</td>
-                                            <td className="font-bold">{formatCurrency(proc.total_debt)}</td>
-                                            <td>
-                                                <span className={`badge badge-${proc.status === 'quitado' ? 'success' : proc.status === 'protestado' ? 'danger' : 'warning'}`}>
-                                                    {proc.status.replace('_', ' ').toUpperCase()}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <select
-                                                    className="select text-xs py-1"
-                                                    value={proc.status}
-                                                    onChange={(e) => updateProcessStatus(proc.id, e.target.value)}
-                                                >
-                                                    <option value="notificado">Notificado</option>
-                                                    <option value="aguardando_prazo">Aguardando Prazo</option>
-                                                    <option value="enviado_cartorio">Enviado Cartório</option>
-                                                    <option value="protestado">Protestado</option>
-                                                    <option value="quitado">Quitado</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {processes.map(proc => {
+                                        const info = statusInfo[proc.status] || statusInfo['notificado']
+                                        return (
+                                            <tr key={proc.id}>
+                                                <td>
+                                                    <div className="font-medium">{proc.residents?.name}</div>
+                                                    <div className="text-xs text-gray">
+                                                        Casa {proc.residents?.unit_number}
+                                                    </div>
+                                                </td>
+                                                <td>{formatDate(proc.notification_date)}</td>
+                                                <td className="font-bold">{formatCurrency(proc.total_debt)}</td>
+                                                <td>
+                                                    <div
+                                                        className={`badge badge-${info.color}`}
+                                                        title={`${info.description}\n\nPróximo passo: ${info.nextStep}`}
+                                                        style={{ cursor: 'help' }}
+                                                    >
+                                                        {info.icon} {info.label}
+                                                    </div>
+                                                    <div className="text-xs text-gray mt-xs">
+                                                        {info.nextStep}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <select
+                                                        className="input text-xs py-1"
+                                                        value={proc.status}
+                                                        onChange={(e) => updateProcessStatus(proc.id, e.target.value)}
+                                                    >
+                                                        <option value="notificado">📧 Notificado</option>
+                                                        <option value="aguardando_prazo">⏳ Aguardando Prazo</option>
+                                                        <option value="enviado_cartorio">📤 Enviado Cartório</option>
+                                                        <option value="protestado">⚖️ Protestado</option>
+                                                        <option value="quitado">✅ Quitado</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                     )}
                 </div>
             </div>
+
+            {/* Modal de Checklist (Educativo) */}
+            {showChecklistModal && (
+                <div className="modal-overlay">
+                    <div className="modal">
+                        <div className="modal-header">
+                            <h2 className="modal-title">⚖️ Checklist para Protesto</h2>
+                            <button className="modal-close" onClick={() => setShowChecklistModal(false)}>&times;</button>
+                        </div>
+                        <div className="p-md">
+                            <div className="bg-yellow-50 border-l-4 border-warning p-md mb-md">
+                                <p className="font-bold mb-xs">⚠️ Atenção Legal</p>
+                                <p className="text-sm">Antes de protestar, você DEVE cumprir os seguintes requisitos legais:</p>
+                            </div>
+
+                            <div className="space-y-sm mb-md">
+                                <label className="flex items-start gap-sm cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={checklist.carta_enviada}
+                                        onChange={(e) => setChecklist({ ...checklist, carta_enviada: e.target.checked })}
+                                        className="mt-1"
+                                    />
+                                    <div>
+                                        <div className="font-bold">📧 Carta de Cobrança Enviada (com AR)</div>
+                                        <div className="text-xs text-gray">Morador deve ser notificado por escrito com Aviso de Recebimento</div>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-start gap-sm cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={checklist.prazo_cumprido}
+                                        onChange={(e) => setChecklist({ ...checklist, prazo_cumprido: e.target.checked })}
+                                        className="mt-1"
+                                    />
+                                    <div>
+                                        <div className="font-bold">⏳ Prazo de 10 Dias Úteis Cumprido</div>
+                                        <div className="text-xs text-gray">Aguardar 10 dias úteis após recebimento da carta para pagamento voluntário</div>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-start gap-sm cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={checklist.documentos_anexados}
+                                        onChange={(e) => setChecklist({ ...checklist, documentos_anexados: e.target.checked })}
+                                        className="mt-1"
+                                    />
+                                    <div>
+                                        <div className="font-bold">📄 Documentos Preparados</div>
+                                        <div className="text-xs text-gray">Contrato, boletos, comprovantes de cobrança e AR da carta</div>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-start gap-sm opacity-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={checklist.valor_calculado}
+                                        disabled
+                                        className="mt-1"
+                                    />
+                                    <div>
+                                        <div className="font-bold">💰 Valor Atualizado Calculado</div>
+                                        <div className="text-xs text-gray">✅ Sistema calcula automaticamente (Multa 2% + Juros 1% a.m)</div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="bg-blue-50 border-l-4 border-primary p-md mb-md">
+                                <p className="font-bold mb-xs">📚 Informação</p>
+                                <p className="text-sm">
+                                    <strong>Morador:</strong> {selectedDefaulter?.resident.name}<br />
+                                    <strong>Valor Total:</strong> {formatCurrency(selectedDefaulter?.totalDebt)}<br />
+                                    <strong>Dias de Atraso:</strong> {Math.max(...(selectedDefaulter?.bills.map(b => b.days) || [0]))} dias
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-sm">
+                                <button className="btn btn-outline" onClick={() => setShowChecklistModal(false)}>Cancelar</button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={proceedToCreateProcess}
+                                    disabled={!checklist.carta_enviada || !checklist.prazo_cumprido || !checklist.documentos_anexados}
+                                >
+                                    Continuar para Protesto
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal Create Process */}
             {showProcessModal && (
