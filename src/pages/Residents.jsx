@@ -165,8 +165,7 @@ export default function Residents() {
                             <thead>
                                 <tr>
                                     <th>Nome</th>
-                                    <th>Unidade</th>
-                                    <th>Bloco</th>
+                                    <th>Número da Casa</th>
                                     <th>Documentos</th>
                                     <th>Tipo</th>
                                     <th>Status</th>
@@ -177,7 +176,6 @@ export default function Residents() {
                                     <tr key={resident.id}>
                                         <td className="font-medium">{resident.name}</td>
                                         <td>{resident.unit_number}</td>
-                                        <td>{resident.block || '-'}</td>
                                         <td>
                                             {/* Exibição simples dos documentos */}
                                             {resident.documents && resident.documents.length > 0 ? (
@@ -251,7 +249,7 @@ export default function Residents() {
                                 </div>
 
                                 <div className="input-group">
-                                    <label className="input-label">Unidade (Apto)</label>
+                                    <label className="input-label">Número da Casa</label>
                                     <input
                                         type="text"
                                         name="unit_number"
@@ -259,17 +257,7 @@ export default function Residents() {
                                         className="input"
                                         value={formData.unit_number}
                                         onChange={handleChange}
-                                    />
-                                </div>
-
-                                <div className="input-group">
-                                    <label className="input-label">Bloco</label>
-                                    <input
-                                        type="text"
-                                        name="block"
-                                        className="input"
-                                        value={formData.block}
-                                        onChange={handleChange}
+                                        placeholder="Ex: 105"
                                     />
                                 </div>
 
