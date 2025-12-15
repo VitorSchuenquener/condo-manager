@@ -1,11 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useDropzone } from 'react-dropzone'
 
 export default function AccountsReceivable() {
     const [receivables, setReceivables] = useState([])
     const [residents, setResidents] = useState([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
+    const [showReceiptModal, setShowReceiptModal] = useState(false)
+    const [selectedReceivable, setSelectedReceivable] = useState(null)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [statusFilter, setStatusFilter] = useState('todos')
+
     const [formData, setFormData] = useState({
         resident_id: '',
         description: '',
@@ -13,6 +19,15 @@ export default function AccountsReceivable() {
         due_date: '',
         status: 'pendente'
     })
+
+    // Estados do Modal de Recebimento
+    const [receiptData, setReceiptData] = useState({
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'pix',
+        payment_amount: 0
+    })
+    const [uploadedProof, setUploadedProof] = useState(null)
+    const [uploading, setUploading] = useState(false)
 
     useEffect(() => {
         fetchData()
@@ -94,23 +109,79 @@ export default function AccountsReceivable() {
         setFormData({ ...formData, amount: value })
     }
 
-    const markAsReceived = async (id) => {
-        if (!confirm('Confirmar recebimento desta conta?')) return
+    // --- UPLOAD DE COMPROVANTE ---
+    const onDropProof = useCallback(acceptedFiles => {
+        if (acceptedFiles?.length > 0) {
+            setUploadedProof(acceptedFiles[0])
+        }
+    }, [])
 
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop: onDropProof,
+        multiple: false,
+        accept: { 'image/*': [], 'application/pdf': [] }
+    })
+
+    const uploadProof = async (file) => {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Math.random()}.${fileExt}`
+        const filePath = `payment_proofs/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data } = supabase.storage.from('documents').getPublicUrl(filePath)
+        return data.publicUrl
+    }
+
+    const openReceiptModal = (receivable) => {
+        setSelectedReceivable(receivable)
+        setReceiptData({
+            payment_date: new Date().toISOString().split('T')[0],
+            payment_method: 'pix',
+            payment_amount: receivable.totalCorrected
+        })
+        setUploadedProof(null)
+        setShowReceiptModal(true)
+    }
+
+    const handleReceiptSubmit = async (e) => {
+        e.preventDefault()
+
+        if (!uploadedProof) {
+            alert('⚠️ OBRIGATÓRIO: Anexe a Nota Fiscal ou Comprovante de Pagamento!')
+            return
+        }
+
+        setUploading(true)
         try {
+            const proofUrl = await uploadProof(uploadedProof)
+
             const { error } = await supabase
                 .from('accounts_receivable')
                 .update({
                     status: 'pago',
-                    payment_date: new Date().toISOString()
+                    payment_date: receiptData.payment_date,
+                    payment_method: receiptData.payment_method,
+                    payment_amount: receiptData.payment_amount,
+                    payment_proof: [{ name: uploadedProof.name, url: proofUrl, type: 'nf' }]
                 })
-                .eq('id', id)
+                .eq('id', selectedReceivable.id)
 
             if (error) throw error
+
+            setShowReceiptModal(false)
+            setUploadedProof(null)
             fetchData()
+            alert('✅ Recebimento registrado com sucesso!')
         } catch (error) {
             console.error('Erro ao processar recebimento:', error)
-            alert('Erro ao processar recebimento')
+            alert('Erro ao processar: ' + error.message)
+        } finally {
+            setUploading(false)
         }
     }
 
@@ -172,6 +243,32 @@ export default function AccountsReceivable() {
         return rawData.map(item => calculateFinancials(item))
     }
 
+    // --- KPIs FINANCEIROS ---
+    const totalReceivable = receivables
+        .filter(r => r.status !== 'pago')
+        .reduce((sum, r) => sum + r.totalCorrected, 0)
+
+    const totalOverdue = receivables
+        .filter(r => r.statusDisplay === 'atrasado')
+        .reduce((sum, r) => sum + r.totalCorrected, 0)
+
+    const totalReceived = receivables
+        .filter(r => r.status === 'pago')
+        .reduce((sum, r) => sum + (r.payment_amount || r.total_amount), 0)
+
+    // --- FILTROS ---
+    const filteredReceivables = receivables.filter(item => {
+        const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.residents?.name.toLowerCase().includes(searchTerm.toLowerCase())
+
+        const matchesStatus = statusFilter === 'todos' ||
+            (statusFilter === 'pendente' && item.status === 'pendente') ||
+            (statusFilter === 'atrasado' && item.statusDisplay === 'atrasado') ||
+            (statusFilter === 'pago' && item.status === 'pago')
+
+        return matchesSearch && matchesStatus
+    })
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen">
@@ -182,13 +279,60 @@ export default function AccountsReceivable() {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-lg">
-                <div>
-                    <h1 className="page-title">Contas a Receber</h1>
-                    <p className="page-subtitle">Gestão de receitas e cobranças</p>
+            {/* Header e KPIs */}
+            <div className="mb-lg">
+                <h1 className="page-title">Contas a Receber</h1>
+                <p className="page-subtitle">Gestão de receitas e cobranças</p>
+
+                <div className="grid grid-cols-3 gap-md mt-md">
+                    <div className="card p-md flex items-center justify-between border-l-4 border-warning">
+                        <div>
+                            <p className="text-gray text-sm font-medium">Total a Receber</p>
+                            <p className="text-2xl font-bold text-dark">{formatCurrency(totalReceivable)}</p>
+                        </div>
+                        <div className="text-3xl">💰</div>
+                    </div>
+                    <div className="card p-md flex items-center justify-between border-l-4 border-danger">
+                        <div>
+                            <p className="text-gray text-sm font-medium">Em Atraso</p>
+                            <p className="text-2xl font-bold text-danger">{formatCurrency(totalOverdue)}</p>
+                        </div>
+                        <div className="text-3xl">⚠️</div>
+                    </div>
+                    <div className="card p-md flex items-center justify-between border-l-4 border-success">
+                        <div>
+                            <p className="text-gray text-sm font-medium">Recebido (Total)</p>
+                            <p className="text-2xl font-bold text-success">{formatCurrency(totalReceived)}</p>
+                        </div>
+                        <div className="text-3xl">✅</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Barra de Filtros */}
+            <div className="flex justify-between items-center mb-md gap-md">
+                <div className="flex gap-md flex-1">
+                    <input
+                        type="text"
+                        placeholder="🔍 Buscar por descrição ou morador..."
+                        className="input flex-1"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <select
+                        className="input"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        style={{ minWidth: '150px' }}
+                    >
+                        <option value="todos">Todos</option>
+                        <option value="pendente">Pendentes</option>
+                        <option value="atrasado">Atrasados</option>
+                        <option value="pago">Pagos</option>
+                    </select>
                 </div>
                 <button
-                    className="btn btn-success"
+                    className="btn btn-success whitespace-nowrap"
                     onClick={() => setShowModal(true)}
                 >
                     + Nova Receita
@@ -196,9 +340,11 @@ export default function AccountsReceivable() {
             </div>
 
             <div className="card">
-                {receivables.length === 0 ? (
+                {filteredReceivables.length === 0 ? (
                     <div className="text-center p-xl text-gray">
-                        Nenhuma conta a receber registrada.
+                        {searchTerm || statusFilter !== 'todos'
+                            ? 'Nenhuma conta encontrada com os filtros aplicados.'
+                            : 'Nenhuma conta a receber registrada.'}
                     </div>
                 ) : (
                     <div className="table-container">
@@ -214,7 +360,7 @@ export default function AccountsReceivable() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {receivables.map((item) => (
+                                {filteredReceivables.map((item) => (
                                     <tr key={item.id} className={item.statusDisplay === 'atrasado' ? 'bg-red-50' : ''}>
                                         <td className="font-medium">
                                             {item.description}
@@ -266,10 +412,20 @@ export default function AccountsReceivable() {
                                             {item.status !== 'pago' && (
                                                 <button
                                                     className="btn btn-sm btn-outline btn-success w-full"
-                                                    onClick={() => markAsReceived(item.id)}
+                                                    onClick={() => openReceiptModal(item)}
                                                 >
-                                                    Receber {formatCurrency(item.totalCorrected)}
+                                                    💵 Receber {formatCurrency(item.totalCorrected)}
                                                 </button>
+                                            )}
+                                            {item.status === 'pago' && item.payment_proof && (
+                                                <a
+                                                    href={item.payment_proof[0]?.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="btn btn-sm btn-outline text-xs"
+                                                >
+                                                    📄 Ver NF
+                                                </a>
                                             )}
                                         </td>
                                     </tr>
@@ -376,6 +532,120 @@ export default function AccountsReceivable() {
                                 </button>
                                 <button type="submit" className="btn btn-success">
                                     Gerar Cobrança
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Recebimento com Upload de NF */}
+            {showReceiptModal && selectedReceivable && (
+                <div className="modal-overlay">
+                    <div className="modal">
+                        <div className="modal-header">
+                            <h2 className="modal-title">💵 Registrar Recebimento</h2>
+                            <button className="modal-close" onClick={() => setShowReceiptModal(false)}>&times;</button>
+                        </div>
+
+                        <form onSubmit={handleReceiptSubmit}>
+                            {/* Informações da Conta */}
+                            <div className="bg-gray-50 p-md rounded mb-md">
+                                <p className="text-sm text-gray mb-xs"><strong>Descrição:</strong> {selectedReceivable.description}</p>
+                                <p className="text-sm text-gray mb-xs"><strong>Morador:</strong> {selectedReceivable.residents?.name || 'Receita Avulsa'}</p>
+                                <p className="text-sm text-gray mb-xs"><strong>Vencimento:</strong> {simpleDate(selectedReceivable.due_date)}</p>
+                                {selectedReceivable.daysLate > 0 && (
+                                    <p className="text-sm text-danger font-bold">⚠️ {selectedReceivable.daysLate} dias de atraso</p>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-md">
+                                <div className="input-group">
+                                    <label className="input-label">Data do Recebimento</label>
+                                    <input
+                                        type="date"
+                                        className="input"
+                                        value={receiptData.payment_date}
+                                        onChange={(e) => setReceiptData({ ...receiptData, payment_date: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div className="input-group">
+                                    <label className="input-label">Forma de Pagamento</label>
+                                    <select
+                                        className="input"
+                                        value={receiptData.payment_method}
+                                        onChange={(e) => setReceiptData({ ...receiptData, payment_method: e.target.value })}
+                                    >
+                                        <option value="pix">PIX</option>
+                                        <option value="transferencia">Transferência</option>
+                                        <option value="boleto">Boleto</option>
+                                        <option value="dinheiro">Dinheiro</option>
+                                        <option value="cheque">Cheque</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="input-group">
+                                <label className="input-label">Valor Recebido (com juros/multa)</label>
+                                <input
+                                    type="text"
+                                    className="input font-bold text-lg"
+                                    value={formatCurrency(receiptData.payment_amount)}
+                                    readOnly
+                                    style={{ background: '#f0f9ff' }}
+                                />
+                                {selectedReceivable.daysLate > 0 && (
+                                    <p className="text-xs text-gray mt-xs">
+                                        Original: {formatCurrency(selectedReceivable.amount)} +
+                                        Multa: {formatCurrency(selectedReceivable.penalty)} +
+                                        Juros: {formatCurrency(selectedReceivable.interest)}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Upload Obrigatório de Comprovante */}
+                            <div className="input-group">
+                                <label className="input-label text-danger font-bold">📄 Nota Fiscal / Comprovante (OBRIGATÓRIO)</label>
+                                <div
+                                    {...getRootProps()}
+                                    className={`border-2 border-dashed rounded p-lg text-center cursor-pointer transition-colors ${isDragActive ? 'border-success bg-green-50' : uploadedProof ? 'border-success bg-green-50' : 'border-danger bg-red-50'
+                                        }`}
+                                >
+                                    <input {...getInputProps()} />
+                                    {uploadedProof ? (
+                                        <div className="text-success font-medium">
+                                            ✅ {uploadedProof.name}
+                                            <p className="text-xs mt-xs">Clique ou arraste outro para substituir</p>
+                                        </div>
+                                    ) : (
+                                        <div className={isDragActive ? 'text-success' : 'text-danger'}>
+                                            <p className="font-bold mb-xs">⚠️ Anexe a NF ou Comprovante</p>
+                                            <p className="text-sm">Arraste o arquivo ou clique aqui</p>
+                                            <p className="text-xs text-gray mt-xs">PDF ou Imagem</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs text-gray mt-xs">
+                                    ⚖️ <strong>Compliance Contábil:</strong> Todo recebimento precisa de comprovante fiscal para registro no balancete.
+                                </p>
+                            </div>
+
+                            <div className="flex justify-center gap-md mt-lg">
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={() => setShowReceiptModal(false)}
+                                    disabled={uploading}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-success"
+                                    disabled={uploading || !uploadedProof}
+                                >
+                                    {uploading ? 'Processando...' : '✅ Confirmar Recebimento'}
                                 </button>
                             </div>
                         </form>
