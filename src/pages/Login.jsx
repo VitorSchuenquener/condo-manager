@@ -23,50 +23,41 @@ export default function Login() {
 
         try {
             if (isSignUp) {
-                // --- CADASTRO ---
+                // --- CADASTRO NOVO (Via Trigger) ---
 
-                // 1. Validação Admin
-                if (role === 'admin' && adminCode !== MASTER_KEY) {
+                // 1. Validação do Código Mestre (apenas frontend, segurança real no backend é ideal, mas serve para UX)
+                const isAdminRequest = role === 'admin'
+                if (isAdminRequest && adminCode !== MASTER_KEY) {
                     throw new Error("Código Master incorreto!")
                 }
 
-                // 2. Criar Usuário (Auth)
+                // 2. Criar Usuário enviando Metadados (O Trigger do banco vai criar o Perfil)
                 const { data: authData, error: authError } = await supabase.auth.signUp({
                     email,
                     password,
-                })
-                if (authError) throw authError
-
-                if (authData.user) {
-                    // 3. Criar Perfil
-                    const isApproved = (role === 'admin') // Só Admin nasce aprovado
-
-                    const { error: profileError } = await supabase
-                        .from('profiles')
-                        .insert([{
-                            id: authData.user.id,
+                    options: {
+                        data: {
                             full_name: fullName,
                             role: role,
-                            is_approved: isApproved
-                        }])
-
-                    if (profileError) {
-                        // Se der erro no perfil, tenta mostrar (ex: usuario já existe na tabela de perfis)
-                        console.error(profileError)
-                        throw new Error("Erro ao criar perfil. Verifique se o e-mail já está em uso.")
+                            // Se acertou o código mestre, enviamos um sinal para o banco aprovar direto
+                            is_admin_approved: isAdminRequest
+                        }
                     }
+                })
 
-                    // 4. Feedback
-                    if (isApproved) {
-                        alert("👑 Conta Admin criada com sucesso! Entrando...")
-                        // O Login automático acontece se o supabase.auth.signUp já retornar sessão.
+                if (authError) throw authError
+
+                // 3. Sucesso - Verifica se logou direto ou precisa confirmar email
+                if (authData.user) {
+                    if (isAdminRequest) {
+                        alert("👑 Conta Admin criada com sucesso!")
                     } else {
-                        // Se for usuário comum, NÃO DEIXA ENTRAR AUTOMATICAMENTE.
+                        // Força logout para garantir que não entre como pendente
                         await supabase.auth.signOut()
                         setSuccessMsg("✅ Cadastro realizado! Sua conta está em análise. Aguarde a aprovação do Administrador.")
-                        setIsSignUp(false) // Volta pro Login
+                        setIsSignUp(false)
                         setLoading(false)
-                        return // Para aqui.
+                        return
                     }
                 }
             } else {
@@ -77,33 +68,28 @@ export default function Login() {
                 })
                 if (error) throw error
 
-                // Validar Aprovação
                 if (data.user) {
-                    const { data: profile } = await supabase
+                    // Verifica status no perfil recém criado/existente
+                    const { data: profile, error: profileError } = await supabase
                         .from('profiles')
                         .select('is_approved, role')
                         .eq('id', data.user.id)
                         .single()
 
-                    if (!profile) {
-                        // Caso raro: User existe na Auth mas sem perfil (banco resetado incorretamente)
-                        throw new Error("Perfil não encontrado. Contate o suporte.")
+                    if (profileError || !profile) {
+                        console.error(profileError)
+                        throw new Error("Erro ao verificar perfil. Tente novamente em instantes.")
                     }
 
                     if (!profile.is_approved) {
                         await supabase.auth.signOut()
                         throw new Error("⛔ Sua conta ainda não foi aprovada pelo Administrador.")
                     }
-
-                    // Se passou, o App.jsx vai redirecionar pro Dashboard
                 }
             }
         } catch (error) {
             console.error(error)
             setError(error.message || 'Ocorreu um erro.')
-            if (isSignUp && error.message.includes('already registered')) {
-                setError('Este e-mail já está cadastrado.')
-            }
         } finally {
             setLoading(false)
         }

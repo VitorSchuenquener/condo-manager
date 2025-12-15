@@ -11,6 +11,7 @@ export default function AdminUsers() {
 
     const fetchProfiles = async () => {
         try {
+            // Busca todos os perfis. A ordenação é feita pelo banco.
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
@@ -20,6 +21,7 @@ export default function AdminUsers() {
             setProfiles(data || [])
         } catch (error) {
             console.error('Erro ao buscar perfis:', error)
+            // Não falha a tela inteira, apenas mostra lista vazia se der erro grave
         } finally {
             setLoading(false)
         }
