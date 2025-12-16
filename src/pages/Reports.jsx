@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { format, startOfMonth, endOfMonth, parseISO, differenceInDays, isBefore, isAfter, isSameDay } from 'date-fns'
+import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 
@@ -10,51 +10,56 @@ export default function Reports() {
     const [referenceDate, setReferenceDate] = useState(format(new Date(), 'yyyy-MM'))
     const [reportData, setReportData] = useState(null)
 
-    // EFEITO AUTOMÁTICO RESTAURADO: Recarrega sempre que mudar data ou tipo
+    // EFEITO AUTOMÁTICO
     useEffect(() => {
         generateReport()
     }, [referenceDate, reportType])
 
-    // Função auxiliar para cálculo de Juros/Multa
     const calculatePenalty = (bill) => {
         if (!bill.due_date) return { original: 0, fine: 0, interest: 0, days: 0, total: 0 };
 
-        const dueDate = new Date(bill.due_date)
-        dueDate.setHours(23, 59, 59, 999)
+        try {
+            const dueDate = new Date(bill.due_date)
+            // Validação simples de data
+            if (isNaN(dueDate.getTime())) return { original: Number(bill.total_amount) || 0, fine: 0, interest: 0, days: 0, total: Number(bill.total_amount) || 0 };
 
-        const today = new Date()
-        const diffTime = today - dueDate
-        const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+            dueDate.setHours(23, 59, 59, 999)
 
-        const originalAmount = Number(bill.total_amount) || 0
+            const today = new Date()
+            const diffTime = today - dueDate
+            const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-        if (daysLate <= 0) {
+            const originalAmount = Number(bill.total_amount) || 0
+
+            if (daysLate <= 0) {
+                return {
+                    original: originalAmount,
+                    fine: 0,
+                    interest: 0,
+                    days: 0,
+                    total: originalAmount
+                }
+            }
+
+            const fine = originalAmount * 0.02
+            const interest = originalAmount * (0.000333 * daysLate)
+            const total = originalAmount + fine + interest
+
             return {
                 original: originalAmount,
-                fine: 0,
-                interest: 0,
-                days: 0,
-                total: originalAmount
+                fine: fine,
+                interest: interest,
+                days: daysLate,
+                total: total
             }
-        }
-
-        const fine = originalAmount * 0.02
-        const interest = originalAmount * (0.000333 * daysLate)
-        const total = originalAmount + fine + interest
-
-        return {
-            original: originalAmount,
-            fine: fine,
-            interest: interest,
-            days: daysLate,
-            total: total
+        } catch (e) {
+            console.warn("Erro ao calcular multa:", e);
+            return { original: Number(bill.total_amount) || 0, fine: 0, interest: 0, days: 0, total: Number(bill.total_amount) || 0 };
         }
     }
 
     const generateReport = async () => {
         setLoading(true)
-        // Não limpamos reportData imediatamente para evitar "piscar" na tela se for apenas troca de filtro rapida
-        // setReportData(null) 
 
         try {
             if (reportType === 'monthly_balance') {
@@ -63,8 +68,10 @@ export default function Reports() {
                 await generateDefaultersReport()
             }
         } catch (error) {
-            console.error('Erro ao gerar relatório:', error)
-            toast.error("Erro técnico ao processar relatório. Tente atualizar a página.")
+            console.error('Erro detalhado:', error)
+            // Mostra a mensagem real do erro para facilitar o diagnóstico
+            const msg = error.message || "Erro desconhecido ao processar relatório.";
+            toast.error(`Erro: ${msg}`);
         } finally {
             setLoading(false)
         }
@@ -76,8 +83,9 @@ export default function Reports() {
         const startDate = startOfMonth(refDate)
         const endDate = endOfMonth(refDate)
 
-        endDate.setHours(23, 59, 59, 999)
+        // Ajuste de horas para comparação segura (Início do dia 1 vs Final do último dia)
         startDate.setHours(0, 0, 0, 0)
+        endDate.setHours(23, 59, 59, 999)
 
         // 1. Carregar TUDO (Estratégia segura para Saldo Anterior)
         const { data: allReceipts, error: rError } = await supabase
@@ -86,7 +94,7 @@ export default function Reports() {
             .eq('status', 'pago')
             .order('payment_date')
 
-        if (rError) throw rError;
+        if (rError) throw new Error(`Erro ao buscar receitas: ${rError.message}`);
 
         const { data: allExpenses, error: eError } = await supabase
             .from('accounts_payable')
@@ -94,18 +102,20 @@ export default function Reports() {
             .eq('status', 'pago')
             .order('payment_date')
 
-        if (eError) throw eError;
+        if (eError) throw new Error(`Erro ao buscar despesas: ${eError.message}`);
 
+        // Busca inadimplentes (Vencidos até hoje e não pagos)
+        const todayStr = new Date().toISOString().split('T')[0];
         const { data: openInvoices, error: iError } = await supabase
             .from('accounts_receivable')
             .select('*, residents(name, unit_number, block)')
-            .lt('due_date', new Date().toISOString().split('T')[0])
+            .lt('due_date', todayStr)
             .neq('status', 'pago')
             .order('due_date')
 
-        if (iError) throw iError;
+        if (iError) throw new Error(`Erro ao buscar inadimplência: ${iError.message}`);
 
-        // --- PROCESSAMENTO NA MEMÓRIA ---
+        // --- PROCESSAMENTO ---
 
         let prevReceiptsTotal = 0
         let prevExpensesTotal = 0
@@ -113,44 +123,47 @@ export default function Reports() {
         const currentReceipts = []
         const currentExpenses = []
 
-            // Processar Receitas com segurança
+            // Processar Receitas (Usando timestamps numéricos para máxima segurança e compatibilidade)
             (allReceipts || []).forEach(r => {
                 if (!r.payment_date) return;
                 try {
+                    // Parse seguro
                     const pDate = parseISO(r.payment_date);
+                    // Definir meio-dia para evitar problemas de fuso
                     pDate.setHours(12, 0, 0, 0);
 
-                    if (isBefore(pDate, startDate)) {
-                        prevReceiptsTotal += Number(r.total_amount)
-                    } else if ((isAfter(pDate, startDate) || isSameDay(pDate, startDate)) && (isBefore(pDate, endDate) || isSameDay(pDate, endDate))) {
+                    // Comparação numérica direta
+                    if (pDate.getTime() < startDate.getTime()) {
+                        prevReceiptsTotal += Number(r.total_amount) || 0
+                    } else if (pDate.getTime() >= startDate.getTime() && pDate.getTime() <= endDate.getTime()) {
                         currentReceipts.push(r)
                     }
                 } catch (err) {
-                    console.warn("Data inválida ignorada na receita:", r);
+                    console.warn("Data inválida ignorada na receita:", r, err);
                 }
             });
 
-        // Processar Despesas com segurança
+        // Processar Despesas
         (allExpenses || []).forEach(e => {
             if (!e.payment_date) return;
             try {
                 const pDate = parseISO(e.payment_date);
                 pDate.setHours(12, 0, 0, 0);
 
-                if (isBefore(pDate, startDate)) {
-                    prevExpensesTotal += Number(e.amount)
-                } else if ((isAfter(pDate, startDate) || isSameDay(pDate, startDate)) && (isBefore(pDate, endDate) || isSameDay(pDate, endDate))) {
+                if (pDate.getTime() < startDate.getTime()) {
+                    prevExpensesTotal += Number(e.amount) || 0
+                } else if (pDate.getTime() >= startDate.getTime() && pDate.getTime() <= endDate.getTime()) {
                     currentExpenses.push(e)
                 }
             } catch (err) {
-                console.warn("Data inválida ignorada na despesa:", e);
+                console.warn("Data inválida ignorada na despesa:", e, err);
             }
         });
 
         const previousBalance = prevReceiptsTotal - prevExpensesTotal
 
-        const totalRevenue = currentReceipts.reduce((acc, curr) => acc + Number(curr.total_amount), 0)
-        const totalExpenses = currentExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0)
+        const totalRevenue = currentReceipts.reduce((acc, curr) => acc + (Number(curr.total_amount) || 0), 0)
+        const totalExpenses = currentExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
 
         const processedDefaulters = (openInvoices || []).map(bill => {
             const calculated = calculatePenalty(bill)
@@ -178,12 +191,15 @@ export default function Reports() {
     }
 
     const generateDefaultersReport = async () => {
-        const { data: defaulters } = await supabase
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { data: defaulters, error } = await supabase
             .from('accounts_receivable')
             .select('*, residents(name, unit_number, block, phone, email)')
-            .lt('due_date', new Date().toISOString().split('T')[0])
+            .lt('due_date', todayStr)
             .neq('status', 'pago')
             .order('due_date')
+
+        if (error) throw new Error(`Erro ao buscar lista de inadimplentes: ${error.message}`);
 
         const processedDefaulters = (defaulters || []).map(bill => {
             const calculated = calculatePenalty(bill)
@@ -204,7 +220,7 @@ export default function Reports() {
         return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: 'BRL',
-        }).format(value)
+        }).format(value || 0)
     }
 
     const handlePrint = () => {
