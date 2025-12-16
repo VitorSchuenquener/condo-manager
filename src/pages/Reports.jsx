@@ -188,7 +188,7 @@ export default function Reports() {
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colSpan="2" style={{ paddingTop: '16px', fontWeight: 'bold', color: '#111827', fontSize: '13px' }}>Total Entradas</td>
+                                            <td colSpan="2" style={{ paddingTop: '16px', textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#111827', fontSize: '13px', textTransform: 'uppercase' }}>Total Entradas</td>
                                             <td style={{ paddingTop: '16px', textAlign: 'right', fontWeight: 'bold', color: '#16a34a', fontSize: '14px' }}>{formatCurrency(reportData.summary.revenue)}</td>
                                         </tr>
                                     </tfoot>
@@ -203,9 +203,9 @@ export default function Reports() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 'bold' }}>
-                                            <th style={{ padding: '8px 4px', textAlign: 'left' }}>Data</th>
-                                            <th style={{ padding: '8px 4px', textAlign: 'left' }}>Descrição</th>
-                                            <th style={{ padding: '8px 4px', textAlign: 'right' }}>Valor</th>
+                                            <th style={{ padding: '10px 4px', textAlign: 'left' }}>Data</th>
+                                            <th style={{ padding: '10px 4px', textAlign: 'left' }}>Descrição</th>
+                                            <th style={{ padding: '10px 4px', textAlign: 'right' }}>Valor</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -224,7 +224,7 @@ export default function Reports() {
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colSpan="2" style={{ paddingTop: '16px', fontWeight: 'bold', color: '#111827', fontSize: '13px' }}>Total Saídas</td>
+                                            <td colSpan="2" style={{ paddingTop: '16px', textAlign: 'right', paddingRight: '16px', fontWeight: 'bold', color: '#111827', fontSize: '13px', textTransform: 'uppercase' }}>Total Saídas</td>
                                             <td style={{ paddingTop: '16px', textAlign: 'right', fontWeight: 'bold', color: '#dc2626', fontSize: '14px' }}>{formatCurrency(reportData.summary.expenses)}</td>
                                         </tr>
                                     </tfoot>
