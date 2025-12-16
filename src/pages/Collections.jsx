@@ -129,6 +129,13 @@ export default function Collections() {
                 totalPending: overdueData?.length,
                 overdueCount: overdueOnly.length,
                 today: today.toISOString(),
+                todayLocal: today.toLocaleDateString('pt-BR'),
+                allBills: overdueData?.map(b => ({
+                    desc: b.description,
+                    due: b.due_date,
+                    resident: b.residents?.name,
+                    isOverdue: today > new Date(b.due_date + 'T00:00:00')
+                })),
                 sample: overdueOnly[0] ? {
                     due_date: overdueOnly[0].due_date,
                     resident: overdueOnly[0].residents?.name
