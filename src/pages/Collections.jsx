@@ -117,10 +117,23 @@ export default function Collections() {
 
             // 2. Filtrar apenas as que estão REALMENTE atrasadas
             const today = new Date()
+            today.setHours(0, 0, 0, 0) // Zerar horas para comparar apenas a data
+
             const overdueOnly = overdueData?.filter(bill => {
-                const dueDate = new Date(bill.due_date)
+                const dueDate = new Date(bill.due_date + 'T00:00:00') // Forçar timezone local
+                dueDate.setHours(0, 0, 0, 0)
                 return today > dueDate
             }) || []
+
+            console.log('DEBUG Collections:', {
+                totalPending: overdueData?.length,
+                overdueCount: overdueOnly.length,
+                today: today.toISOString(),
+                sample: overdueOnly[0] ? {
+                    due_date: overdueOnly[0].due_date,
+                    resident: overdueOnly[0].residents?.name
+                } : null
+            })
 
             // 3. Agrupar por morador e calcular juros
             const groupedDefaulters = {}
