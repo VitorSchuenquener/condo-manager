@@ -321,6 +321,34 @@ export default function Reports() {
                             </div>
                         </div>
 
+                        {/* QUADRO DE RESUMO CONTÁBIL (CONCILIAÇÃO) */}
+                        <div style={{ marginTop: '32px', pageBreakInside: 'avoid', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px', backgroundColor: '#f9fafb' }}>
+                            <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 'bold', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                📊 Resumo Contábil & Conciliação
+                            </h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                    <div style={{ color: '#6b7280', marginBottom: '4px', fontWeight: '500' }}>SALDO ANTERIOR</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#374151' }}>{formatCurrency(reportData.summary.balance - reportData.summary.revenue + reportData.summary.expenses)}</div>
+                                </div>
+                                <div style={{ color: '#9ca3af', fontWeight: 'bold', fontSize: '18px' }}>+</div>
+                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                    <div style={{ color: '#166534', marginBottom: '4px', fontWeight: '500' }}>TOTAL ENTRADAS</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>{formatCurrency(reportData.summary.revenue)}</div>
+                                </div>
+                                <div style={{ color: '#9ca3af', fontWeight: 'bold', fontSize: '18px' }}>-</div>
+                                <div style={{ textAlign: 'center', flex: 1 }}>
+                                    <div style={{ color: '#991b1b', marginBottom: '4px', fontWeight: '500' }}>TOTAL SAÍDAS</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#dc2626' }}>{formatCurrency(reportData.summary.expenses)}</div>
+                                </div>
+                                <div style={{ color: '#374151', fontWeight: 'bold', fontSize: '18px' }}>=</div>
+                                <div style={{ textAlign: 'center', flex: 1, backgroundColor: '#eff6ff', padding: '12px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                                    <div style={{ color: '#1e40af', marginBottom: '4px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '11px' }}>SALDO ATUAL TRANSPORTADO</div>
+                                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e3a8a' }}>{formatCurrency(reportData.summary.balance)}</div>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Technical Footer */}
                         <div style={{ marginTop: '40px', borderTop: '1px solid #e5e7eb', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#9ca3af' }}>
                             <div>CONDOMANAGER SYSTEM VER. 2.0</div>
