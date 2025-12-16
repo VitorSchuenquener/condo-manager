@@ -86,7 +86,7 @@ export default function Reports() {
     return (
         <div style={{ backgroundColor: '#f3f4f6', minHeight: '100vh', padding: '20px', fontFamily: "'Segoe UI', 'Roboto', sans-serif" }}>
 
-            {/* Controles de Interface (Expandido para acompanhar largura) */}
+            {/* Controles de Interface */}
             <div className="no-print" style={{ maxWidth: '1280px', margin: '0 auto 24px auto', backgroundColor: 'white', padding: '16px 24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <strong style={{ color: '#4b5563', fontSize: '14px' }}>REFERÊNCIA:</strong>
@@ -97,9 +97,9 @@ export default function Reports() {
                 </button>
             </div>
 
-            {/* FOLHA DO RELATÓRIO (LARGURA EXPANDIDA) */}
+            {/* FOLHA DO RELATÓRIO PREENCHENDO */}
             <div className="report-sheet" style={{
-                maxWidth: '1280px', // Aumentado de 210mm para 1280px
+                maxWidth: '1280px', // Widescreen
                 width: '100%',
                 minHeight: '297mm',
                 margin: '0 auto',
@@ -123,7 +123,7 @@ export default function Reports() {
                             </div>
                         </div>
 
-                        {/* CARDS VISUAIS (Cards Maiores agora que tem mais espaço) */}
+                        {/* CARDS VISUAIS */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '40px' }}>
 
                             {/* Receitas */}
@@ -165,9 +165,9 @@ export default function Reports() {
                             </div>
                         </div>
 
-                        {/* TABELAS LADO A LADO - Com mais espaço lateral */}
+                        {/* TABELAS COM RODAPÉS DE TOTAL */}
                         <div style={{ display: 'flex', gap: '48px', marginBottom: '40px' }}>
-                            {/* Receitas */}
+                            {/* Tabela Receitas */}
                             <div style={{ flex: 1 }}>
                                 <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '2px solid #22c55e', paddingBottom: '12px', marginBottom: '20px' }}>
                                     Detalhamento de Entradas
@@ -192,10 +192,20 @@ export default function Reports() {
                                             </tr>
                                         ))}
                                     </tbody>
+                                    <tfoot>
+                                        <tr style={{ borderTop: '2px solid #22c55e', backgroundColor: '#f0fdf4' }}>
+                                            <td colSpan="2" style={{ padding: '16px 10px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: '#166534', letterSpacing: '1px' }}>
+                                                Total Entradas
+                                            </td>
+                                            <td style={{ padding: '16px 10px', textAlign: 'right', fontWeight: '800', fontSize: '16px', color: '#14532d', fontFamily: 'monospace' }}>
+                                                {formatCurrency(reportData.summary.revenue)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
 
-                            {/* Despesas */}
+                            {/* Tabela Despesas */}
                             <div style={{ flex: 1 }}>
                                 <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '2px solid #ef4444', paddingBottom: '12px', marginBottom: '20px' }}>
                                     Detalhamento de Saídas
@@ -220,11 +230,21 @@ export default function Reports() {
                                             </tr>
                                         ))}
                                     </tbody>
+                                    <tfoot>
+                                        <tr style={{ borderTop: '2px solid #ef4444', backgroundColor: '#fef2f2' }}>
+                                            <td colSpan="2" style={{ padding: '16px 10px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: '#991b1b', letterSpacing: '1px' }}>
+                                                Total Saídas
+                                            </td>
+                                            <td style={{ padding: '16px 10px', textAlign: 'right', fontWeight: '800', fontSize: '16px', color: '#7f1d1d', fontFamily: 'monospace' }}>
+                                                {formatCurrency(reportData.summary.expenses)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         </div>
 
-                        {/* INADIMPLÊNCIA EXPANDIDA */}
+                        {/* INADIMPLÊNCIA COm TOTAL */}
                         <div style={{ marginTop: '40px', pageBreakInside: 'avoid' }}>
                             <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', borderRadius: '8px', padding: '32px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #fed7aa', paddingBottom: '16px' }}>
@@ -265,6 +285,16 @@ export default function Reports() {
                                             </tr>
                                         ))}
                                     </tbody>
+                                    <tfoot>
+                                        <tr style={{ borderTop: '2px solid #ea580c', backgroundColor: '#fff7ed' }}>
+                                            <td colSpan="3" style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 'bold', fontSize: '13px', textTransform: 'uppercase', color: '#9a3412', letterSpacing: '1px' }}>
+                                                Total Geral Pendente
+                                            </td>
+                                            <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: '800', fontSize: '16px', color: '#c2410c', fontFamily: 'monospace' }}>
+                                                {formatCurrency(reportData.summary.defaults)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         </div>
