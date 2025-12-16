@@ -159,7 +159,8 @@ export default function AccountsReceivable() {
         setReceiptData({
             payment_date: new Date().toISOString().split('T')[0],
             payment_method: 'pix',
-            payment_amount: receivable.totalCorrected
+            // Garante que o valor venha formatado com apenas 2 casas decimais para evitar "R$ 535,641"
+            payment_amount: Number(receivable.totalCorrected).toFixed(2)
         })
         setUploadedProof(null)
         setShowReceiptModal(true)
