@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { format, startOfMonth, endOfMonth, parseISO, differenceInDays } from 'date-fns'
+import { format, startOfMonth, endOfMonth, parseISO, differenceInDays, isBefore, isAfter, isWithinInterval } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 export default function Reports() {
@@ -13,7 +13,7 @@ export default function Reports() {
         generateReport()
     }, [referenceDate, reportType])
 
-    // Função auxiliar para cálculo de Juros/Multa (Mesma lógica do módulo de Cobranças)
+    // Função auxiliar para cálculo de Juros/Multa
     const calculatePenalty = (bill) => {
         const dueDate = new Date(bill.due_date)
         dueDate.setHours(23, 59, 59, 999)
@@ -32,7 +32,6 @@ export default function Reports() {
             }
         }
 
-        // Regra: Multa 2% + Juros 1% ao mês (0.033% ao dia)
         const originalAmount = Number(bill.total_amount)
         const fine = originalAmount * 0.02
         const interest = originalAmount * (0.000333 * daysLate)
@@ -64,50 +63,30 @@ export default function Reports() {
     }
 
     const generateMonthlyBalance = async () => {
-        const date = parseISO(referenceDate + '-01')
-        const start = startOfMonth(date).toISOString()
-        const end = endOfMonth(date).toISOString()
+        const refDate = parseISO(referenceDate + '-01')
+        // Ajustando para garantir comparação correta de datas strings (YYYY-MM-DD vs Fuso Horário)
+        // Usaremos comparação de strings YYYY-MM-DD para evitar problemas de timezone
+        const startStr = format(startOfMonth(refDate), 'yyyy-MM-dd')
+        const endStr = format(endOfMonth(refDate), 'yyyy-MM-dd')
 
-        // --- 1. Calcular Saldo ANTERIOR (Tudo antes do inicio deste mês) ---
-        // Receitas Anteriores
-        const { data: prevReceipts } = await supabase
-            .from('accounts_receivable')
-            .select('total_amount')
-            .eq('status', 'pago')
-            .lt('payment_date', start)
+        // --- ESTRATÉGIA ROBUSTA: Carregar TUDO que foi pago e filtrar na memória ---
+        // Isso garante consistência total com o Dashboard
 
-        // Despesas Anteriores
-        const { data: prevExpenses } = await supabase
-            .from('accounts_payable')
-            .select('amount')
-            .eq('status', 'pago')
-            .lt('payment_date', start)
-
-        const totalPrevReceipts = (prevReceipts || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0)
-        const totalPrevExpenses = (prevExpenses || []).reduce((acc, curr) => acc + Number(curr.amount), 0)
-        const previousBalance = totalPrevReceipts - totalPrevExpenses
-
-
-        // --- 2. Buscar Movimento do MÊS ATUAL ---
-        // Receitas do Mês
-        const { data: receipts } = await supabase
+        // 1. Carregar TODAS as Receitas Pagas
+        const { data: allReceipts } = await supabase
             .from('accounts_receivable')
             .select('*, residents(name, unit_number)')
             .eq('status', 'pago')
-            .gte('payment_date', start)
-            .lte('payment_date', end)
             .order('payment_date')
 
-        // Despesas do Mês
-        const { data: expenses } = await supabase
+        // 2. Carregar TODAS as Despesas Pagas
+        const { data: allExpenses } = await supabase
             .from('accounts_payable')
             .select('*')
             .eq('status', 'pago')
-            .gte('payment_date', start)
-            .lte('payment_date', end)
             .order('payment_date')
 
-        // --- 3. Buscar Inadimplência (Com cálculo de Juros) ---
+        // 3. Carregar Inadimplência
         const { data: openInvoices } = await supabase
             .from('accounts_receivable')
             .select('*, residents(name, unit_number, block)')
@@ -115,31 +94,66 @@ export default function Reports() {
             .neq('status', 'pago')
             .order('due_date')
 
-        // Processar inadimplência calculando juros para cada conta
+
+        // --- PROCESSAMENTO ---
+
+        // Separar: Antes do Mês vs Durante o Mês
+        let prevReceiptsTotal = 0
+        let prevExpensesTotal = 0
+
+        const currentReceipts = []
+        const currentExpenses = []
+
+            // Receitas
+            (allReceipts || []).forEach(r => {
+                if (!r.payment_date) return;
+                // Comparação simples de string funciona bem para ISO YYYY-MM-DD
+                if (r.payment_date < startStr) {
+                    prevReceiptsTotal += Number(r.total_amount)
+                } else if (r.payment_date >= startStr && r.payment_date <= endStr) {
+                    currentReceipts.push(r)
+                }
+                // Futuro ignorado para este balancete específico
+            });
+
+        // Despesas
+        (allExpenses || []).forEach(e => {
+            if (!e.payment_date) return;
+            if (e.payment_date < startStr) {
+                prevExpensesTotal += Number(e.amount)
+            } else if (e.payment_date >= startStr && e.payment_date <= endStr) {
+                currentExpenses.push(e)
+            }
+        });
+
+        const previousBalance = prevReceiptsTotal - prevExpensesTotal
+
+        // Totais do Mês
+        const totalRevenue = currentReceipts.reduce((acc, curr) => acc + Number(curr.total_amount), 0)
+        const totalExpenses = currentExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0)
+
+        // Inadimplência com Juros
         const processedDefaulters = (openInvoices || []).map(bill => {
             const calculated = calculatePenalty(bill)
             return { ...bill, calculatedTotal: calculated.total, daysLate: calculated.days }
         })
-
-        const totalRevenue = (receipts || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0)
-        const totalExpenses = (expenses || []).reduce((acc, curr) => acc + Number(curr.amount), 0)
         const totalDefaultersWithInterest = processedDefaulters.reduce((acc, curr) => acc + Number(curr.calculatedTotal), 0)
 
-        // Saldo Final do Mês = Saldo Anterior + Receitas - Despesas
+        // Saldo Final
         const currentBalance = previousBalance + totalRevenue - totalExpenses
 
         setReportData({
             type: 'monthly_balance',
-            period: format(date, 'MMMM yyyy', { locale: ptBR }),
-            receipts: receipts || [],
-            expenses: expenses || [],
+            period: format(refDate, 'MMMM yyyy', { locale: ptBR }),
+            receipts: currentReceipts,
+            expenses: currentExpenses,
             defaulters: processedDefaulters,
             summary: {
-                previousBalance: previousBalance, // Saldo trazido de meses anteriores
+                previousBalance: previousBalance,
                 revenue: totalRevenue,
                 expenses: totalExpenses,
-                balance: currentBalance, // Saldo Acumulado Atual (Deve bater com Dashboard)
-                monthResult: totalRevenue - totalExpenses, // Resultado só deste mês (pode ser negativo)
+                balance: currentBalance,
+                monthResult: totalRevenue - totalExpenses,
                 totalDefault: totalDefaultersWithInterest
             }
         })
@@ -279,17 +293,23 @@ export default function Reports() {
                                     {/* SALDO ANTERIOR (Novo Card) */}
                                     <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                         <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 'bold' }}>Saldo Anterior</p>
-                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#334155' }}>{formatCurrency(reportData.summary.previousBalance)}</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#334155' }}>
+                                            {formatCurrency(reportData.summary.previousBalance)}
+                                        </p>
                                     </div>
 
                                     <div style={{ backgroundColor: '#f0fdf4', padding: '16px', borderRadius: '8px', border: '1px solid #dcfce7' }}>
                                         <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#166534', fontWeight: 'bold' }}>Total Receitas</p>
-                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#15803d' }}>{formatCurrency(reportData.summary.revenue)}</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#15803d' }}>
+                                            {formatCurrency(reportData.summary.revenue)}
+                                        </p>
                                     </div>
 
                                     <div style={{ backgroundColor: '#fef2f2', padding: '16px', borderRadius: '8px', border: '1px solid #fee2e2' }}>
                                         <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#991b1b', fontWeight: 'bold' }}>Total Despesas</p>
-                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#b91c1c' }}>{formatCurrency(reportData.summary.expenses)}</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#b91c1c' }}>
+                                            {formatCurrency(reportData.summary.expenses)}
+                                        </p>
                                     </div>
 
                                     {/* SALDO EM CAIXA ATUAL (Acumulado) */}
