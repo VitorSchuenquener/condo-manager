@@ -59,8 +59,30 @@ export default function Reports() {
                 const dueDate = new Date(bill.due_date)
                 const now = new Date()
                 const daysLate = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24))
-                if (daysLate <= 0) return { ...bill, calculatedTotal: amount, daysLate: 0 }
-                return { ...bill, calculatedTotal: amount + (amount * 0.02) + (amount * (0.000333 * daysLate)), daysLate }
+
+                if (daysLate <= 0) return {
+                    ...bill,
+                    original: amount,
+                    fine: 0,
+                    interest: 0,
+                    calculatedTotal: amount,
+                    daysLate: 0
+                }
+
+                // Cálculo Analítico
+                const fine = amount * 0.02 // Multa 2%
+                const interestRate = 0.000333 // Aprox 1% ao mês / 30 dias
+                const interest = amount * (interestRate * daysLate) // Juros compostos simples p/ dias corridos
+                const total = amount + fine + interest
+
+                return {
+                    ...bill,
+                    original: amount,
+                    fine: fine,
+                    interest: interest,
+                    calculatedTotal: total,
+                    daysLate
+                }
             })
 
             const totalDefaults = processedDefaulters.reduce((acc, curr) => acc + curr.calculatedTotal, 0)
@@ -69,7 +91,12 @@ export default function Reports() {
                 receipts: receipts || [],
                 expenses: expenses || [],
                 defaulters: processedDefaulters,
-                summary: { revenue: totalRevenue, expenses: totalExpenses, balance: currentBalance, defaults: totalDefaults }
+                summary: {
+                    revenue: totalRevenue,
+                    expenses: totalExpenses,
+                    balance: currentBalance,
+                    defaults: totalDefaults
+                }
             })
         } catch (error) {
             console.error(error)
@@ -167,9 +194,9 @@ export default function Reports() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 'bold' }}>
-                                            <th style={{ padding: '8px 4px', textAlign: 'left' }}>Data</th>
-                                            <th style={{ padding: '8px 4px', textAlign: 'left' }}>Descrição</th>
-                                            <th style={{ padding: '8px 4px', textAlign: 'right' }}>Valor</th>
+                                            <th style={{ padding: '10px 4px', textAlign: 'left' }}>Data</th>
+                                            <th style={{ padding: '10px 4px', textAlign: 'left' }}>Descrição</th>
+                                            <th style={{ padding: '10px 4px', textAlign: 'right' }}>Valor</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -232,49 +259,61 @@ export default function Reports() {
                             </div>
                         </div>
 
-                        {/* INADIMPLÊNCIA ACUMULADA */}
+                        {/* INADIMPLÊNCIA ACUMULADA ANALÍTICA */}
                         <div style={{ marginTop: '40px', pageBreakInside: 'avoid' }}>
                             <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', borderRadius: '8px', padding: '0 0 0 0', overflow: 'hidden' }}>
                                 {/* Header da Inadimplência */}
                                 <div style={{ padding: '24px 32px' }}>
                                     <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#9a3412', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        ⚠️ DEMONSTRATIVO DE INADIMPLÊNCIA ACUMULADA
+                                        ⚠️ DEMONSTRATIVO ANALÍTICO DE DÉBITOS
                                     </h3>
                                     <div style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280' }}>
-                                        Relação de unidades em aberto até a data de emissão deste documento.
+                                        Correção Monetária: Multa de 2% sobre o valor original + Juros de mora de 1% a.m (0,033% a.dia)
                                     </div>
                                 </div>
 
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                     <thead style={{ backgroundColor: '#ffedd5', color: '#9a3412' }}>
                                         <tr>
-                                            <th style={{ padding: '12px 32px', textAlign: 'left', width: '15%' }}>Unidade</th>
-                                            <th style={{ padding: '12px 12px', textAlign: 'left', width: '35%' }}>Morador</th>
-                                            <th style={{ padding: '12px 12px', textAlign: 'left', width: '25%' }}>Vencimento</th>
-                                            <th style={{ padding: '12px 32px', textAlign: 'right', width: '25%' }}>Valor Pendente</th>
+                                            <th style={{ padding: '12px 24px', textAlign: 'left', width: '10%' }}>Unidade</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'left', width: '25%' }}>Morador</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'center', width: '15%' }}>Vencimento</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'right', width: '15%' }}>Valor Original</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'right', width: '20%' }}>Encargos (Multa/Juros)</th>
+                                            <th style={{ padding: '12px 24px', textAlign: 'right', width: '15%' }}>Total Devido</th>
                                         </tr>
                                     </thead>
                                     <tbody style={{ backgroundColor: 'white' }}>
                                         {reportData.defaulters.map(d => (
                                             <tr key={d.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                                <td style={{ padding: '16px 32px', fontWeight: 'bold', color: '#1f2937' }}>{d.residents?.unit_number}</td>
-                                                <td style={{ padding: '16px 12px', color: '#374151' }}>{d.residents?.name}</td>
-                                                <td style={{ padding: '16px 12px', color: '#dc2626' }}>
-                                                    {formatDate(d.due_date)}
-                                                    <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '6px' }}>({d.daysLate} dias)</span>
+                                                <td style={{ padding: '12px 24px', fontWeight: 'bold', color: '#1f2937' }}>{d.residents?.unit_number}</td>
+                                                <td style={{ padding: '12px 12px', color: '#374151' }}>
+                                                    {d.residents?.name}
+                                                    <span style={{ display: 'block', fontSize: '10px', color: '#9ca3af' }}>{d.residents?.block}</span>
                                                 </td>
-                                                <td style={{ padding: '16px 32px', textAlign: 'right', fontWeight: 'bold', color: '#1f2937' }}>
+                                                <td style={{ padding: '12px 12px', textAlign: 'center', color: '#dc2626' }}>
+                                                    {formatDate(d.due_date)}
+                                                    <span style={{ display: 'block', fontSize: '10px', fontWeight: 'bold' }}>{d.daysLate} dias atraso</span>
+                                                </td>
+                                                <td style={{ padding: '12px 12px', textAlign: 'right', color: '#4b5563' }}>
+                                                    {formatCurrency(d.original)}
+                                                </td>
+                                                <td style={{ padding: '12px 12px', textAlign: 'right', color: '#d97706' }}>
+                                                    <div>+ {formatCurrency(d.fine + d.interest)}</div>
+                                                    <div style={{ fontSize: '10px', opacity: 0.8 }}>(M: {formatCurrency(d.fine)} / J: {formatCurrency(d.interest)})</div>
+                                                </td>
+                                                <td style={{ padding: '12px 24px', textAlign: 'right', fontWeight: 'bold', color: '#9a3412', fontSize: '13px' }}>
                                                     {formatCurrency(d.calculatedTotal)}
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
-                                    {/* FOOTER BARRA CORRIDA EXATAMENTE COMO NA IMAGEM */}
+                                    {/* FOOTER BARRA CORRIDA */}
                                     <tfoot style={{ backgroundColor: '#fff7ed' }}>
                                         <tr>
-                                            <td colSpan="4" style={{ padding: '16px 32px', textAlign: 'right' }}>
-                                                <span style={{ fontWeight: 'bold', color: '#9a3412', marginRight: '8px' }}>Total Inadimplência:</span>
-                                                <span style={{ fontWeight: 'bold', color: '#c2410c', fontSize: '14px' }}>{formatCurrency(reportData.summary.defaults)}</span>
+                                            <td colSpan="6" style={{ padding: '16px 32px', textAlign: 'right' }}>
+                                                <span style={{ fontWeight: 'bold', color: '#9a3412', marginRight: '8px' }}>Total Geral Inadimplência:</span>
+                                                <span style={{ fontWeight: 'bold', color: '#c2410c', fontSize: '15px' }}>{formatCurrency(reportData.summary.defaults)}</span>
                                             </td>
                                         </tr>
                                     </tfoot>
