@@ -10,8 +10,10 @@ export default function Reports() {
     const [referenceDate, setReferenceDate] = useState(format(new Date(), 'yyyy-MM'))
     const [reportData, setReportData] = useState(null)
 
-    // Removido useEffect automático para evitar loops ou travamentos silenciosos.
-    // O usuário agora clica explicitamente em "Gerar".
+    // EFEITO AUTOMÁTICO RESTAURADO: Recarrega sempre que mudar data ou tipo
+    useEffect(() => {
+        generateReport()
+    }, [referenceDate, reportType])
 
     // Função auxiliar para cálculo de Juros/Multa
     const calculatePenalty = (bill) => {
@@ -49,31 +51,31 @@ export default function Reports() {
         }
     }
 
-    const handleGenerateClick = async () => {
+    const generateReport = async () => {
         setLoading(true)
-        setReportData(null)
+        // Não limpamos reportData imediatamente para evitar "piscar" na tela se for apenas troca de filtro rapida
+        // setReportData(null) 
+
         try {
             if (reportType === 'monthly_balance') {
                 await generateMonthlyBalance()
             } else if (reportType === 'defaulters') {
                 await generateDefaultersReport()
             }
-            toast.success("Relatório gerado com sucesso!")
         } catch (error) {
             console.error('Erro ao gerar relatório:', error)
-            toast.error("Erro ao gerar relatório. Verifique o console.")
+            toast.error("Erro técnico ao processar relatório. Tente atualizar a página.")
         } finally {
             setLoading(false)
         }
     }
 
     const generateMonthlyBalance = async () => {
-        // Datas de Referência (Inicio e Fim do Mês Selecionado)
+        // Datas de Referência
         const refDate = parseISO(referenceDate + '-01')
         const startDate = startOfMonth(refDate)
         const endDate = endOfMonth(refDate)
 
-        // Ajuste para garantir comparação até o final do dia
         endDate.setHours(23, 59, 59, 999)
         startDate.setHours(0, 0, 0, 0)
 
@@ -103,7 +105,7 @@ export default function Reports() {
 
         if (iError) throw iError;
 
-        // --- PROCESSAMENTO NA MEMÓRIA (DATE-FNS) ---
+        // --- PROCESSAMENTO NA MEMÓRIA ---
 
         let prevReceiptsTotal = 0
         let prevExpensesTotal = 0
@@ -111,31 +113,37 @@ export default function Reports() {
         const currentReceipts = []
         const currentExpenses = []
 
-            // Processar Receitas
+            // Processar Receitas com segurança
             (allReceipts || []).forEach(r => {
                 if (!r.payment_date) return;
-                // Parse da data do pagamento (trazida do banco)
-                const pDate = parseISO(r.payment_date);
-                // Resetar horas para garantir comparação justa de data
-                pDate.setHours(12, 0, 0, 0);
+                try {
+                    const pDate = parseISO(r.payment_date);
+                    pDate.setHours(12, 0, 0, 0);
 
-                if (isBefore(pDate, startDate)) {
-                    prevReceiptsTotal += Number(r.total_amount)
-                } else if ((isAfter(pDate, startDate) || isSameDay(pDate, startDate)) && (isBefore(pDate, endDate) || isSameDay(pDate, endDate))) {
-                    currentReceipts.push(r)
+                    if (isBefore(pDate, startDate)) {
+                        prevReceiptsTotal += Number(r.total_amount)
+                    } else if ((isAfter(pDate, startDate) || isSameDay(pDate, startDate)) && (isBefore(pDate, endDate) || isSameDay(pDate, endDate))) {
+                        currentReceipts.push(r)
+                    }
+                } catch (err) {
+                    console.warn("Data inválida ignorada na receita:", r);
                 }
             });
 
-        // Processar Despesas
+        // Processar Despesas com segurança
         (allExpenses || []).forEach(e => {
             if (!e.payment_date) return;
-            const pDate = parseISO(e.payment_date);
-            pDate.setHours(12, 0, 0, 0);
+            try {
+                const pDate = parseISO(e.payment_date);
+                pDate.setHours(12, 0, 0, 0);
 
-            if (isBefore(pDate, startDate)) {
-                prevExpensesTotal += Number(e.amount)
-            } else if ((isAfter(pDate, startDate) || isSameDay(pDate, startDate)) && (isBefore(pDate, endDate) || isSameDay(pDate, endDate))) {
-                currentExpenses.push(e)
+                if (isBefore(pDate, startDate)) {
+                    prevExpensesTotal += Number(e.amount)
+                } else if ((isAfter(pDate, startDate) || isSameDay(pDate, startDate)) && (isBefore(pDate, endDate) || isSameDay(pDate, endDate))) {
+                    currentExpenses.push(e)
+                }
+            } catch (err) {
+                console.warn("Data inválida ignorada na despesa:", e);
             }
         });
 
@@ -245,56 +253,31 @@ export default function Reports() {
                         </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button
-                            onClick={handleGenerateClick}
-                            disabled={loading}
-                            style={{
-                                flex: 2,
-                                padding: '10px 24px',
-                                backgroundColor: '#10b981',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                opacity: loading ? 0.7 : 1
-                            }}
-                        >
-                            {loading ? 'Gerando...' : '📄 Gerar Relatório'}
-                        </button>
-
-                        <button
-                            onClick={handlePrint}
-                            disabled={!reportData}
-                            style={{
-                                flex: 1,
-                                padding: '10px 24px',
-                                backgroundColor: '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                opacity: !reportData ? 0.7 : 1
-                            }}
-                        >
-                            🖨️ Imprimir
-                        </button>
-                    </div>
+                    <button
+                        onClick={handlePrint}
+                        disabled={!reportData}
+                        style={{
+                            padding: '10px 24px',
+                            backgroundColor: '#3b82f6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            opacity: !reportData ? 0.7 : 1
+                        }}
+                    >
+                        🖨️ Imprimir Oficial (PDF)
+                    </button>
                 </div>
             </div>
 
             {/* Área do Relatório (Papel A4 Digital) */}
-            {loading ? (
+            {loading && !reportData ? (
                 <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
                     <div className="spinner" style={{ marginBottom: '16px', fontSize: '24px' }}>🔄</div>
                     Carregando dados financeiros e calculando saldos...
@@ -556,7 +539,7 @@ export default function Reports() {
             ) : (
                 <div style={{ textAlign: 'center', padding: '64px', color: '#94a3b8', backgroundColor: '#f8fafc', borderRadius: '12px', border: '2px dashed #e2e8f0' }}>
                     <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
-                    <p>Selecione os parâmetros acima e <strong>clique em Gerar Relatório</strong> para visualizar.</p>
+                    <p>Selecione os parâmetros acima e clique em gerar para visualizar o relatório.</p>
                 </div>
             )}
 
