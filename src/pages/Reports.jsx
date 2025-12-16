@@ -13,6 +13,40 @@ export default function Reports() {
         generateReport()
     }, [referenceDate, reportType])
 
+    // Função auxiliar para cálculo de Juros/Multa (Mesma lógica do módulo de Cobranças)
+    const calculatePenalty = (bill) => {
+        const dueDate = new Date(bill.due_date)
+        dueDate.setHours(23, 59, 59, 999)
+
+        const today = new Date()
+        const diffTime = today - dueDate
+        const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        if (daysLate <= 0) {
+            return {
+                original: Number(bill.total_amount),
+                fine: 0,
+                interest: 0,
+                days: 0,
+                total: Number(bill.total_amount)
+            }
+        }
+
+        // Regra: Multa 2% + Juros 1% ao mês (0.033% ao dia)
+        const originalAmount = Number(bill.total_amount)
+        const fine = originalAmount * 0.02
+        const interest = originalAmount * (0.000333 * daysLate)
+        const total = originalAmount + fine + interest
+
+        return {
+            original: originalAmount,
+            fine: fine,
+            interest: interest,
+            days: daysLate,
+            total: total
+        }
+    }
+
     const generateReport = async () => {
         setLoading(true)
         setReportData(null)
@@ -34,7 +68,28 @@ export default function Reports() {
         const start = startOfMonth(date).toISOString()
         const end = endOfMonth(date).toISOString()
 
-        // 1. Buscar Receitas (Entradas no período)
+        // --- 1. Calcular Saldo ANTERIOR (Tudo antes do inicio deste mês) ---
+        // Receitas Anteriores
+        const { data: prevReceipts } = await supabase
+            .from('accounts_receivable')
+            .select('total_amount')
+            .eq('status', 'pago')
+            .lt('payment_date', start)
+
+        // Despesas Anteriores
+        const { data: prevExpenses } = await supabase
+            .from('accounts_payable')
+            .select('amount')
+            .eq('status', 'pago')
+            .lt('payment_date', start)
+
+        const totalPrevReceipts = (prevReceipts || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0)
+        const totalPrevExpenses = (prevExpenses || []).reduce((acc, curr) => acc + Number(curr.amount), 0)
+        const previousBalance = totalPrevReceipts - totalPrevExpenses
+
+
+        // --- 2. Buscar Movimento do MÊS ATUAL ---
+        // Receitas do Mês
         const { data: receipts } = await supabase
             .from('accounts_receivable')
             .select('*, residents(name, unit_number)')
@@ -43,7 +98,7 @@ export default function Reports() {
             .lte('payment_date', end)
             .order('payment_date')
 
-        // 2. Buscar Despesas (Saídas no período)
+        // Despesas do Mês
         const { data: expenses } = await supabase
             .from('accounts_payable')
             .select('*')
@@ -52,8 +107,7 @@ export default function Reports() {
             .lte('payment_date', end)
             .order('payment_date')
 
-        // 3. Buscar Inadimplência (Contas vencidas até o final do período e não pagas)
-        // Nota: Contábilmente, lista-se tudo que está em aberto até a data de emissão
+        // --- 3. Buscar Inadimplência (Com cálculo de Juros) ---
         const { data: openInvoices } = await supabase
             .from('accounts_receivable')
             .select('*, residents(name, unit_number, block)')
@@ -61,21 +115,32 @@ export default function Reports() {
             .neq('status', 'pago')
             .order('due_date')
 
+        // Processar inadimplência calculando juros para cada conta
+        const processedDefaulters = (openInvoices || []).map(bill => {
+            const calculated = calculatePenalty(bill)
+            return { ...bill, calculatedTotal: calculated.total, daysLate: calculated.days }
+        })
+
         const totalRevenue = (receipts || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0)
         const totalExpenses = (expenses || []).reduce((acc, curr) => acc + Number(curr.amount), 0)
-        const totalDefault = (openInvoices || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0)
+        const totalDefaultersWithInterest = processedDefaulters.reduce((acc, curr) => acc + Number(curr.calculatedTotal), 0)
+
+        // Saldo Final do Mês = Saldo Anterior + Receitas - Despesas
+        const currentBalance = previousBalance + totalRevenue - totalExpenses
 
         setReportData({
             type: 'monthly_balance',
             period: format(date, 'MMMM yyyy', { locale: ptBR }),
             receipts: receipts || [],
             expenses: expenses || [],
-            defaulters: openInvoices || [],
+            defaulters: processedDefaulters,
             summary: {
+                previousBalance: previousBalance, // Saldo trazido de meses anteriores
                 revenue: totalRevenue,
                 expenses: totalExpenses,
-                balance: totalRevenue - totalExpenses,
-                totalDefault: totalDefault
+                balance: currentBalance, // Saldo Acumulado Atual (Deve bater com Dashboard)
+                monthResult: totalRevenue - totalExpenses, // Resultado só deste mês (pode ser negativo)
+                totalDefault: totalDefaultersWithInterest
             }
         })
     }
@@ -88,12 +153,17 @@ export default function Reports() {
             .neq('status', 'pago')
             .order('due_date')
 
-        const totalDebt = (defaulters || []).reduce((acc, curr) => acc + Number(curr.total_amount), 0)
+        const processedDefaulters = (defaulters || []).map(bill => {
+            const calculated = calculatePenalty(bill)
+            return { ...bill, calculatedTotal: calculated.total, daysLate: calculated.days }
+        })
+
+        const totalDebt = processedDefaulters.reduce((acc, curr) => acc + Number(curr.calculatedTotal), 0)
 
         setReportData({
             type: 'defaulters',
             date: format(new Date(), 'dd/MM/yyyy'),
-            items: defaulters || [],
+            items: processedDefaulters,
             totalDebt
         })
     }
@@ -204,25 +274,36 @@ export default function Reports() {
                         {reportData.type === 'monthly_balance' && (
                             <div>
                                 {/* Cards de Resumo Executivo */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', marginBottom: '40px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+
+                                    {/* SALDO ANTERIOR (Novo Card) */}
+                                    <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                        <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#475569', fontWeight: 'bold' }}>Saldo Anterior</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#334155' }}>{formatCurrency(reportData.summary.previousBalance)}</p>
+                                    </div>
+
                                     <div style={{ backgroundColor: '#f0fdf4', padding: '16px', borderRadius: '8px', border: '1px solid #dcfce7' }}>
                                         <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#166534', fontWeight: 'bold' }}>Total Receitas</p>
-                                        <p style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 'bold', color: '#15803d' }}>{formatCurrency(reportData.summary.revenue)}</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#15803d' }}>{formatCurrency(reportData.summary.revenue)}</p>
                                     </div>
+
                                     <div style={{ backgroundColor: '#fef2f2', padding: '16px', borderRadius: '8px', border: '1px solid #fee2e2' }}>
                                         <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#991b1b', fontWeight: 'bold' }}>Total Despesas</p>
-                                        <p style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 'bold', color: '#b91c1c' }}>{formatCurrency(reportData.summary.expenses)}</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: '#b91c1c' }}>{formatCurrency(reportData.summary.expenses)}</p>
                                     </div>
+
+                                    {/* SALDO EM CAIXA ATUAL (Acumulado) */}
                                     <div style={{ backgroundColor: '#eff6ff', padding: '16px', borderRadius: '8px', border: '1px solid #dbeafe' }}>
-                                        <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#1e40af', fontWeight: 'bold' }}>Saldo Caixa</p>
-                                        <p style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 'bold', color: reportData.summary.balance >= 0 ? '#1e3a8a' : '#ef4444' }}>
+                                        <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#1e40af', fontWeight: 'bold' }}>Saldo Disponível</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 'bold', color: reportData.summary.balance >= 0 ? '#1e3a8a' : '#ef4444' }}>
                                             {formatCurrency(reportData.summary.balance)}
                                         </p>
                                     </div>
-                                    <div style={{ backgroundColor: '#fff7ed', padding: '16px', borderRadius: '8px', border: '1px solid #ffedd5' }}>
-                                        <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', color: '#9a3412', fontWeight: 'bold' }}>Inadimplência</p>
-                                        <p style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 'bold', color: '#ea580c' }}>{formatCurrency(reportData.summary.totalDefault)}</p>
-                                    </div>
+                                </div>
+
+                                {/* Resultado do Mês (Destaque pequeno) */}
+                                <div style={{ textAlign: 'center', marginBottom: '32px', fontSize: '13px', color: '#64748b', borderTop: '1px dashed #cbd5e1', borderBottom: '1px dashed #cbd5e1', padding: '8px' }}>
+                                    Resultado do Período (Receitas - Despesas): <strong style={{ color: reportData.summary.monthResult >= 0 ? '#15803d' : '#b91c1c' }}>{formatCurrency(reportData.summary.monthResult)}</strong>
                                 </div>
 
                                 {/* Colunas Lado a Lado: Entradas e Saídas */}
@@ -302,23 +383,32 @@ export default function Reports() {
                                     </div>
                                 </div>
 
-                                {/* SEÇÃO NOVA: INADIMPLÊNCIA NO BALANCETE */}
+                                {/* SEÇÃO NOVA: INADIMPLÊNCIA COM JUROS */}
                                 <div style={{ pageBreakInside: 'avoid', borderTop: '2px dashed #cbd5e1', paddingTop: '24px' }}>
-                                    <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px', color: '#9a3412', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        ⚠️ Demonstrativo de Inadimplência Acumulada
-                                    </h4>
-                                    <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>
-                                        Relação de unidades com faturas em aberto até a data de emissão deste documento.
-                                    </p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                        <div>
+                                            <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#9a3412', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                                                ⚠️ Demonstrativo de Inadimplência
+                                            </h4>
+                                            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
+                                                Valores atualizados com multa (2%) e juros (1% a.m).
+                                            </p>
+                                        </div>
+                                        <div style={{ textAlign: 'right', backgroundColor: '#fff7ed', padding: '8px 16px', borderRadius: '4px', border: '1px solid #ffedd5' }}>
+                                            <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#9a3412', fontWeight: 'bold' }}>Total a Receber</div>
+                                            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ea580c' }}>{formatCurrency(reportData.summary.totalDefault)}</div>
+                                        </div>
+                                    </div>
 
                                     {reportData.defaulters && reportData.defaulters.length > 0 ? (
                                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                             <thead>
                                                 <tr style={{ backgroundColor: '#fff7ed', borderBottom: '1px solid #ffedd5', color: '#9a3412', textAlign: 'left' }}>
                                                     <th style={{ padding: '8px', width: '15%' }}>Unidade</th>
-                                                    <th style={{ padding: '8px', width: '35%' }}>Morador</th>
-                                                    <th style={{ padding: '8px', width: '25%' }}>Vencimento</th>
-                                                    <th style={{ padding: '8px', width: '25%', textAlign: 'right' }}>Valor Pendente</th>
+                                                    <th style={{ padding: '8px', width: '30%' }}>Morador</th>
+                                                    <th style={{ padding: '8px', width: '20%' }}>Vencimento</th>
+                                                    <th style={{ padding: '8px', width: '20%', textAlign: 'right' }}>Valor Original</th>
+                                                    <th style={{ padding: '8px', width: '15%', textAlign: 'right' }}>Valor Atualizado</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -329,19 +419,14 @@ export default function Reports() {
                                                         <td style={{ padding: '8px', color: '#dc2626' }}>
                                                             {format(parseISO(d.due_date), 'dd/MM/yyyy')}
                                                             <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '6px' }}>
-                                                                ({differenceInDays(new Date(), parseISO(d.due_date))} dias)
+                                                                ({d.daysLate} dias)
                                                             </span>
                                                         </td>
-                                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(d.total_amount)}</td>
+                                                        <td style={{ padding: '8px', textAlign: 'right', color: '#64748b' }}>{formatCurrency(d.total_amount)}</td>
+                                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#ea580c' }}>{formatCurrency(d.calculatedTotal)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
-                                            <tfoot>
-                                                <tr style={{ backgroundColor: '#fff7ed', borderTop: '2px solid #ffedd5' }}>
-                                                    <td colSpan="3" style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#9a3412' }}>Total Inadimplência:</td>
-                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#ea580c' }}>{formatCurrency(reportData.summary.totalDefault)}</td>
-                                                </tr>
-                                            </tfoot>
                                         </table>
                                     ) : (
                                         <div style={{ padding: '16px', backgroundColor: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: '6px', textAlign: 'center', color: '#166534' }}>
@@ -352,22 +437,23 @@ export default function Reports() {
                             </div>
                         )}
 
-                        {/* Conteúdo: Lista Simples de Inadimplentes (Seção separada se escolhida) */}
+                        {/* Conteúdo: Lista Simples de Inadimplentes */}
                         {reportData.type === 'defaulters' && (
                             <div>
                                 <div style={{ backgroundColor: '#fef2f2', padding: '24px', borderRadius: '8px', border: '1px solid #fee2e2', marginBottom: '32px', textAlign: 'center' }}>
-                                    <p style={{ margin: 0, fontSize: '14px', textTransform: 'uppercase', color: '#991b1b', fontWeight: 'bold' }}>Total Pendente Acumulado</p>
+                                    <p style={{ margin: 0, fontSize: '14px', textTransform: 'uppercase', color: '#991b1b', fontWeight: 'bold' }}>Total Pendente Atualizado</p>
                                     <p style={{ margin: '8px 0 0', fontSize: '32px', fontWeight: 'bold', color: '#b91c1c' }}>{formatCurrency(reportData.totalDebt)}</p>
+                                    <p style={{ fontSize: '12px', color: '#7f1d1d', marginTop: '4px' }}>Inclui multa e juros proporcionais</p>
                                 </div>
 
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                                     <thead>
                                         <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', textAlign: 'left' }}>
                                             <th style={{ padding: '12px', fontWeight: '600' }}>Unidade</th>
-                                            <th style={{ padding: '12px', fontWeight: '600' }}>Morador Resposável</th>
+                                            <th style={{ padding: '12px', fontWeight: '600' }}>Morador</th>
                                             <th style={{ padding: '12px', fontWeight: '600' }}>Vencimento</th>
-                                            <th style={{ padding: '12px', fontWeight: '600' }}>Referência</th>
-                                            <th style={{ padding: '12px', fontWeight: '600', textAlign: 'right' }}>Valor em Aberto</th>
+                                            <th style={{ padding: '12px', fontWeight: '600', textAlign: 'right' }}>Original</th>
+                                            <th style={{ padding: '12px', fontWeight: '600', textAlign: 'right' }}>Atualizado</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -378,11 +464,13 @@ export default function Reports() {
                                                 </td>
                                                 <td style={{ padding: '12px', color: '#334155' }}>
                                                     {item.residents?.name}
-                                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{item.residents?.phone}</div>
                                                 </td>
-                                                <td style={{ padding: '12px', color: '#dc2626', fontWeight: '500' }}>{format(parseISO(item.due_date), 'dd/MM/yyyy')}</td>
-                                                <td style={{ padding: '12px', color: '#475569' }}>{item.description}</td>
-                                                <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>{formatCurrency(item.total_amount)}</td>
+                                                <td style={{ padding: '12px', color: '#dc2626', fontWeight: '500' }}>
+                                                    {format(parseISO(item.due_date), 'dd/MM/yyyy')}
+                                                    <div style={{ fontSize: '10px', color: '#94a3b8' }}>{item.daysLate} dias atraso</div>
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'right', color: '#64748b' }}>{formatCurrency(item.total_amount)}</td>
+                                                <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold', color: '#b91c1c' }}>{formatCurrency(item.calculatedTotal)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
