@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { format, startOfMonth, endOfMonth, parseISO, differenceInDays, isBefore, isAfter, isWithinInterval } from 'date-fns'
+import { format, startOfMonth, endOfMonth, parseISO, differenceInDays, isBefore, isAfter, isSameDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import toast from 'react-hot-toast'
 
 export default function Reports() {
     const [loading, setLoading] = useState(false)
@@ -9,12 +10,13 @@ export default function Reports() {
     const [referenceDate, setReferenceDate] = useState(format(new Date(), 'yyyy-MM'))
     const [reportData, setReportData] = useState(null)
 
-    useEffect(() => {
-        generateReport()
-    }, [referenceDate, reportType])
+    // Removido useEffect automático para evitar loops ou travamentos silenciosos.
+    // O usuário agora clica explicitamente em "Gerar".
 
     // Função auxiliar para cálculo de Juros/Multa
     const calculatePenalty = (bill) => {
+        if (!bill.due_date) return { original: 0, fine: 0, interest: 0, days: 0, total: 0 };
+
         const dueDate = new Date(bill.due_date)
         dueDate.setHours(23, 59, 59, 999)
 
@@ -22,17 +24,18 @@ export default function Reports() {
         const diffTime = today - dueDate
         const daysLate = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
+        const originalAmount = Number(bill.total_amount) || 0
+
         if (daysLate <= 0) {
             return {
-                original: Number(bill.total_amount),
+                original: originalAmount,
                 fine: 0,
                 interest: 0,
                 days: 0,
-                total: Number(bill.total_amount)
+                total: originalAmount
             }
         }
 
-        const originalAmount = Number(bill.total_amount)
         const fine = originalAmount * 0.02
         const interest = originalAmount * (0.000333 * daysLate)
         const total = originalAmount + fine + interest
@@ -46,7 +49,7 @@ export default function Reports() {
         }
     }
 
-    const generateReport = async () => {
+    const handleGenerateClick = async () => {
         setLoading(true)
         setReportData(null)
         try {
@@ -55,91 +58,98 @@ export default function Reports() {
             } else if (reportType === 'defaulters') {
                 await generateDefaultersReport()
             }
+            toast.success("Relatório gerado com sucesso!")
         } catch (error) {
             console.error('Erro ao gerar relatório:', error)
+            toast.error("Erro ao gerar relatório. Verifique o console.")
         } finally {
             setLoading(false)
         }
     }
 
     const generateMonthlyBalance = async () => {
+        // Datas de Referência (Inicio e Fim do Mês Selecionado)
         const refDate = parseISO(referenceDate + '-01')
-        // Ajustando para garantir comparação correta de datas strings (YYYY-MM-DD vs Fuso Horário)
-        // Usaremos comparação de strings YYYY-MM-DD para evitar problemas de timezone
-        const startStr = format(startOfMonth(refDate), 'yyyy-MM-dd')
-        const endStr = format(endOfMonth(refDate), 'yyyy-MM-dd')
+        const startDate = startOfMonth(refDate)
+        const endDate = endOfMonth(refDate)
 
-        // --- ESTRATÉGIA ROBUSTA: Carregar TUDO que foi pago e filtrar na memória ---
-        // Isso garante consistência total com o Dashboard
+        // Ajuste para garantir comparação até o final do dia
+        endDate.setHours(23, 59, 59, 999)
+        startDate.setHours(0, 0, 0, 0)
 
-        // 1. Carregar TODAS as Receitas Pagas
-        const { data: allReceipts } = await supabase
+        // 1. Carregar TUDO (Estratégia segura para Saldo Anterior)
+        const { data: allReceipts, error: rError } = await supabase
             .from('accounts_receivable')
             .select('*, residents(name, unit_number)')
             .eq('status', 'pago')
             .order('payment_date')
 
-        // 2. Carregar TODAS as Despesas Pagas
-        const { data: allExpenses } = await supabase
+        if (rError) throw rError;
+
+        const { data: allExpenses, error: eError } = await supabase
             .from('accounts_payable')
             .select('*')
             .eq('status', 'pago')
             .order('payment_date')
 
-        // 3. Carregar Inadimplência
-        const { data: openInvoices } = await supabase
+        if (eError) throw eError;
+
+        const { data: openInvoices, error: iError } = await supabase
             .from('accounts_receivable')
             .select('*, residents(name, unit_number, block)')
             .lt('due_date', new Date().toISOString().split('T')[0])
             .neq('status', 'pago')
             .order('due_date')
 
+        if (iError) throw iError;
 
-        // --- PROCESSAMENTO ---
+        // --- PROCESSAMENTO NA MEMÓRIA (DATE-FNS) ---
 
-        // Separar: Antes do Mês vs Durante o Mês
         let prevReceiptsTotal = 0
         let prevExpensesTotal = 0
 
         const currentReceipts = []
         const currentExpenses = []
 
-            // Receitas
+            // Processar Receitas
             (allReceipts || []).forEach(r => {
                 if (!r.payment_date) return;
-                // Comparação simples de string funciona bem para ISO YYYY-MM-DD
-                if (r.payment_date < startStr) {
+                // Parse da data do pagamento (trazida do banco)
+                const pDate = parseISO(r.payment_date);
+                // Resetar horas para garantir comparação justa de data
+                pDate.setHours(12, 0, 0, 0);
+
+                if (isBefore(pDate, startDate)) {
                     prevReceiptsTotal += Number(r.total_amount)
-                } else if (r.payment_date >= startStr && r.payment_date <= endStr) {
+                } else if ((isAfter(pDate, startDate) || isSameDay(pDate, startDate)) && (isBefore(pDate, endDate) || isSameDay(pDate, endDate))) {
                     currentReceipts.push(r)
                 }
-                // Futuro ignorado para este balancete específico
             });
 
-        // Despesas
+        // Processar Despesas
         (allExpenses || []).forEach(e => {
             if (!e.payment_date) return;
-            if (e.payment_date < startStr) {
+            const pDate = parseISO(e.payment_date);
+            pDate.setHours(12, 0, 0, 0);
+
+            if (isBefore(pDate, startDate)) {
                 prevExpensesTotal += Number(e.amount)
-            } else if (e.payment_date >= startStr && e.payment_date <= endStr) {
+            } else if ((isAfter(pDate, startDate) || isSameDay(pDate, startDate)) && (isBefore(pDate, endDate) || isSameDay(pDate, endDate))) {
                 currentExpenses.push(e)
             }
         });
 
         const previousBalance = prevReceiptsTotal - prevExpensesTotal
 
-        // Totais do Mês
         const totalRevenue = currentReceipts.reduce((acc, curr) => acc + Number(curr.total_amount), 0)
         const totalExpenses = currentExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0)
 
-        // Inadimplência com Juros
         const processedDefaulters = (openInvoices || []).map(bill => {
             const calculated = calculatePenalty(bill)
             return { ...bill, calculatedTotal: calculated.total, daysLate: calculated.days }
         })
         const totalDefaultersWithInterest = processedDefaulters.reduce((acc, curr) => acc + Number(curr.calculatedTotal), 0)
 
-        // Saldo Final
         const currentBalance = previousBalance + totalRevenue - totalExpenses
 
         setReportData({
@@ -235,32 +245,60 @@ export default function Reports() {
                         </div>
                     )}
 
-                    <button
-                        onClick={handlePrint}
-                        disabled={!reportData}
-                        style={{
-                            padding: '10px 24px',
-                            backgroundColor: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            opacity: !reportData ? 0.7 : 1
-                        }}
-                    >
-                        🖨️ Imprimir Oficial (PDF)
-                    </button>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                            onClick={handleGenerateClick}
+                            disabled={loading}
+                            style={{
+                                flex: 2,
+                                padding: '10px 24px',
+                                backgroundColor: '#10b981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                opacity: loading ? 0.7 : 1
+                            }}
+                        >
+                            {loading ? 'Gerando...' : '📄 Gerar Relatório'}
+                        </button>
+
+                        <button
+                            onClick={handlePrint}
+                            disabled={!reportData}
+                            style={{
+                                flex: 1,
+                                padding: '10px 24px',
+                                backgroundColor: '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                opacity: !reportData ? 0.7 : 1
+                            }}
+                        >
+                            🖨️ Imprimir
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* Área do Relatório (Papel A4 Digital) */}
             {loading ? (
-                <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>Carregando dados financeiros...</div>
+                <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+                    <div className="spinner" style={{ marginBottom: '16px', fontSize: '24px' }}>🔄</div>
+                    Carregando dados financeiros e calculando saldos...
+                </div>
             ) : reportData ? (
                 <div>
                     <div className="report-paper" style={{
@@ -518,7 +556,7 @@ export default function Reports() {
             ) : (
                 <div style={{ textAlign: 'center', padding: '64px', color: '#94a3b8', backgroundColor: '#f8fafc', borderRadius: '12px', border: '2px dashed #e2e8f0' }}>
                     <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
-                    <p>Selecione os parâmetros acima e clique em gerar para visualizar o relatório.</p>
+                    <p>Selecione os parâmetros acima e <strong>clique em Gerar Relatório</strong> para visualizar.</p>
                 </div>
             )}
 
