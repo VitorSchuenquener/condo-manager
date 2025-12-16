@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
-// Ícones minimalistas para cabeçalhos
+// Ícones minimalistas para cabeçalhos (Mantidos)
 const Icons = {
     Revenue: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>,
     Expense: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>,
@@ -11,7 +11,6 @@ const Icons = {
     Print: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
 }
 
-// Formatador com suporte a fonte tabular (alinhamento numérico)
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
 const formatDate = (dateString) => {
@@ -85,10 +84,10 @@ export default function Reports() {
     const monthLabel = `${monthNames[parseInt(m) - 1]} de ${y}`
 
     return (
-        <div style={{ backgroundColor: '#f3f4f6', minHeight: '100vh', padding: '40px 20px', fontFamily: "'Segoe UI', 'Roboto', sans-serif" }}>
+        <div style={{ backgroundColor: '#f3f4f6', minHeight: '100vh', padding: '20px', fontFamily: "'Segoe UI', 'Roboto', sans-serif" }}>
 
-            {/* Controles de Interface */}
-            <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto 24px auto', backgroundColor: 'white', padding: '16px 24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Controles de Interface (Expandido para acompanhar largura) */}
+            <div className="no-print" style={{ maxWidth: '1280px', margin: '0 auto 24px auto', backgroundColor: 'white', padding: '16px 24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <strong style={{ color: '#4b5563', fontSize: '14px' }}>REFERÊNCIA:</strong>
                     <input type="month" value={referenceMonth} onChange={e => setReferenceMonth(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db', outline: 'none', color: '#374151' }} />
@@ -98,97 +97,98 @@ export default function Reports() {
                 </button>
             </div>
 
-            {/* FOLHA DO RELATÓRIO */}
+            {/* FOLHA DO RELATÓRIO (LARGURA EXPANDIDA) */}
             <div className="report-sheet" style={{
-                maxWidth: '210mm',
+                maxWidth: '1280px', // Aumentado de 210mm para 1280px
+                width: '100%',
                 minHeight: '297mm',
                 margin: '0 auto',
                 backgroundColor: 'white',
                 padding: '40px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }}>
                 {loading || !reportData ? (
                     <div style={{ padding: '60px', textAlign: 'center', color: '#9ca3af' }}>Processando dados financeiros...</div>
                 ) : (
                     <>
-                        {/* CABEÇALHO ELEGANTE */}
+                        {/* CABEÇALHO */}
                         <div style={{ borderBottom: '2px solid #111827', paddingBottom: '24px', marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
                             <div>
-                                <h1 style={{ margin: '0', fontSize: '22px', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Condomínio Residencial</h1>
-                                <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px', letterSpacing: '0.5px' }}>DEMONSTRATIVO FINANCEIRO E DE COMPLIANCE</div>
+                                <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Condomínio Residencial</h1>
+                                <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px', letterSpacing: '0.5px' }}>DEMONSTRATIVO FINANCEIRO E DE COMPLIANCE</div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Período de Referência</div>
-                                <div style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', marginTop: '2px' }}>{monthLabel}</div>
+                                <div style={{ fontSize: '18px', fontWeight: '600', color: '#1f2937', marginTop: '2px' }}>{monthLabel}</div>
                             </div>
                         </div>
 
-                        {/* CARDS VISUAIS (LAYOUT CLÁSSICO) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '40px' }}>
+                        {/* CARDS VISUAIS (Cards Maiores agora que tem mais espaço) */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '40px' }}>
 
                             {/* Receitas */}
-                            <div style={{ backgroundColor: '#f0fdf4', padding: '20px', borderRadius: '4px', borderLeft: '4px solid #16a34a' }}>
+                            <div style={{ backgroundColor: '#f0fdf4', padding: '24px', borderRadius: '8px', borderLeft: '4px solid #16a34a' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#166534', letterSpacing: '0.5px' }}>Total Receitas</span>
+                                    <span style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', color: '#166534', letterSpacing: '0.5px' }}>Total Receitas</span>
                                     <span style={{ color: '#16a34a' }}><Icons.Revenue /></span>
                                 </div>
-                                <div style={{ fontSize: '20px', fontWeight: '700', color: '#14532d', fontFamily: 'monospace' }}>{formatCurrency(reportData.summary.revenue)}</div>
+                                <div style={{ fontSize: '24px', fontWeight: '700', color: '#14532d', fontFamily: 'monospace' }}>{formatCurrency(reportData.summary.revenue)}</div>
                             </div>
 
                             {/* Despesas */}
-                            <div style={{ backgroundColor: '#fef2f2', padding: '20px', borderRadius: '4px', borderLeft: '4px solid #dc2626' }}>
+                            <div style={{ backgroundColor: '#fef2f2', padding: '24px', borderRadius: '8px', borderLeft: '4px solid #dc2626' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#991b1b', letterSpacing: '0.5px' }}>Total Despesas</span>
+                                    <span style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', color: '#991b1b', letterSpacing: '0.5px' }}>Total Despesas</span>
                                     <span style={{ color: '#dc2626' }}><Icons.Expense /></span>
                                 </div>
-                                <div style={{ fontSize: '20px', fontWeight: '700', color: '#7f1d1d', fontFamily: 'monospace' }}>{formatCurrency(reportData.summary.expenses)}</div>
+                                <div style={{ fontSize: '24px', fontWeight: '700', color: '#7f1d1d', fontFamily: 'monospace' }}>{formatCurrency(reportData.summary.expenses)}</div>
                             </div>
 
                             {/* Saldo */}
-                            <div style={{ backgroundColor: '#eff6ff', padding: '20px', borderRadius: '4px', borderLeft: '4px solid #2563eb' }}>
+                            <div style={{ backgroundColor: '#eff6ff', padding: '24px', borderRadius: '8px', borderLeft: '4px solid #2563eb' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#1e40af', letterSpacing: '0.5px' }}>Saldo Caixa</span>
+                                    <span style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', color: '#1e40af', letterSpacing: '0.5px' }}>Saldo Caixa</span>
                                     <span style={{ color: '#2563eb' }}><Icons.Balance /></span>
                                 </div>
-                                <div style={{ fontSize: '20px', fontWeight: '700', color: reportData.summary.balance >= 0 ? '#1e3a8a' : '#991b1b', fontFamily: 'monospace' }}>
+                                <div style={{ fontSize: '24px', fontWeight: '700', color: reportData.summary.balance >= 0 ? '#1e3a8a' : '#991b1b', fontFamily: 'monospace' }}>
                                     {formatCurrency(reportData.summary.balance)}
                                 </div>
                             </div>
 
                             {/* Inadimplência */}
-                            <div style={{ backgroundColor: '#fff7ed', padding: '20px', borderRadius: '4px', borderLeft: '4px solid #d97706' }}>
+                            <div style={{ backgroundColor: '#fff7ed', padding: '24px', borderRadius: '8px', borderLeft: '4px solid #d97706' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#9a3412', letterSpacing: '0.5px' }}>Inadimplência</span>
+                                    <span style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', color: '#9a3412', letterSpacing: '0.5px' }}>Inadimplência</span>
                                     <span style={{ color: '#d97706' }}><Icons.Default /></span>
                                 </div>
-                                <div style={{ fontSize: '20px', fontWeight: '700', color: '#7c2d12', fontFamily: 'monospace' }}>{formatCurrency(reportData.summary.defaults)}</div>
+                                <div style={{ fontSize: '24px', fontWeight: '700', color: '#7c2d12', fontFamily: 'monospace' }}>{formatCurrency(reportData.summary.defaults)}</div>
                             </div>
                         </div>
 
-                        {/* TABELAS PROFISSIONAIS LADO A LADO */}
-                        <div style={{ display: 'flex', gap: '32px', marginBottom: '40px' }}>
+                        {/* TABELAS LADO A LADO - Com mais espaço lateral */}
+                        <div style={{ display: 'flex', gap: '48px', marginBottom: '40px' }}>
                             {/* Receitas */}
                             <div style={{ flex: 1 }}>
-                                <h3 style={{ fontSize: '12px', fontWeight: 'bold', color: '#15803d', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '2px solid #22c55e', paddingBottom: '8px', marginBottom: '16px' }}>
+                                <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '2px solid #22c55e', paddingBottom: '12px', marginBottom: '20px' }}>
                                     Detalhamento de Entradas
                                 </h3>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                     <thead>
                                         <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                            <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: '600' }}>Data</th>
-                                            <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: '600' }}>Descrição</th>
-                                            <th style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '600' }}>Valor</th>
+                                            <th style={{ padding: '12px 10px', textAlign: 'left', fontWeight: '600' }}>Data</th>
+                                            <th style={{ padding: '12px 10px', textAlign: 'left', fontWeight: '600' }}>Descrição</th>
+                                            <th style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '600' }}>Valor</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {reportData.receipts.map((r, i) => (
                                             <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                <td style={{ padding: '10px 8px', color: '#475569', whiteSpace: 'nowrap' }}>{formatDate(r.payment_date)}</td>
-                                                <td style={{ padding: '10px 8px' }}>
+                                                <td style={{ padding: '12px 10px', color: '#475569', whiteSpace: 'nowrap' }}>{formatDate(r.payment_date)}</td>
+                                                <td style={{ padding: '12px 10px' }}>
                                                     <div style={{ fontWeight: '500', color: '#1e293b' }}>{r.description}</div>
-                                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{r.residents?.unit_number} - {r.residents?.name}</div>
+                                                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>{r.residents?.unit_number} - {r.residents?.name}</div>
                                                 </td>
-                                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#334155', fontFamily: 'monospace' }}>{formatCurrency(r.total_amount)}</td>
+                                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '600', color: '#334155', fontFamily: 'monospace' }}>{formatCurrency(r.total_amount)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -197,26 +197,26 @@ export default function Reports() {
 
                             {/* Despesas */}
                             <div style={{ flex: 1 }}>
-                                <h3 style={{ fontSize: '12px', fontWeight: 'bold', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '2px solid #ef4444', paddingBottom: '8px', marginBottom: '16px' }}>
+                                <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '2px solid #ef4444', paddingBottom: '12px', marginBottom: '20px' }}>
                                     Detalhamento de Saídas
                                 </h3>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                     <thead>
                                         <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                            <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: '600' }}>Data</th>
-                                            <th style={{ padding: '10px 8px', textAlign: 'left', fontWeight: '600' }}>Descrição</th>
-                                            <th style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '600' }}>Valor</th>
+                                            <th style={{ padding: '12px 10px', textAlign: 'left', fontWeight: '600' }}>Data</th>
+                                            <th style={{ padding: '12px 10px', textAlign: 'left', fontWeight: '600' }}>Descrição</th>
+                                            <th style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '600' }}>Valor</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {reportData.expenses.map((e, i) => (
                                             <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                <td style={{ padding: '10px 8px', color: '#475569', whiteSpace: 'nowrap' }}>{formatDate(e.payment_date)}</td>
-                                                <td style={{ padding: '10px 8px' }}>
+                                                <td style={{ padding: '12px 10px', color: '#475569', whiteSpace: 'nowrap' }}>{formatDate(e.payment_date)}</td>
+                                                <td style={{ padding: '12px 10px' }}>
                                                     <div style={{ fontWeight: '500', color: '#1e293b' }}>{e.description}</div>
-                                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{e.category}</div>
+                                                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>{e.category}</div>
                                                 </td>
-                                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '600', color: '#334155', fontFamily: 'monospace' }}>{formatCurrency(e.amount)}</td>
+                                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '600', color: '#334155', fontFamily: 'monospace' }}>{formatCurrency(e.amount)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -224,42 +224,42 @@ export default function Reports() {
                             </div>
                         </div>
 
-                        {/* INADIMPLÊNCIA TÉCNICA */}
+                        {/* INADIMPLÊNCIA EXPANDIDA */}
                         <div style={{ marginTop: '40px', pageBreakInside: 'avoid' }}>
-                            <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', borderRadius: '6px', padding: '24px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #fed7aa', paddingBottom: '12px' }}>
-                                    <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: '#9a3412', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', borderRadius: '8px', padding: '32px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #fed7aa', paddingBottom: '16px' }}>
+                                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#9a3412', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <Icons.Default /> STATUS DE INADIMPLÊNCIA
                                     </h3>
-                                    <span style={{ fontSize: '10px', fontWeight: '600', color: '#c2410c', textTransform: 'uppercase', backgroundColor: '#ffedd5', padding: '4px 8px', borderRadius: '4px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#c2410c', textTransform: 'uppercase', backgroundColor: '#ffedd5', padding: '6px 10px', borderRadius: '4px' }}>
                                         Correção: Multa 2% + Juros 1% a.m
                                     </span>
                                 </div>
 
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                     <thead>
                                         <tr style={{ color: '#9a3412', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #fed7aa' }}>
-                                            <th style={{ padding: '8px', textAlign: 'left', fontWeight: '600', width: '10%' }}>UND</th>
-                                            <th style={{ padding: '8px', textAlign: 'left', fontWeight: '600', width: '35%' }}>MORADOR RESPONSÁVEL</th>
-                                            <th style={{ padding: '8px', textAlign: 'left', fontWeight: '600', width: '30%' }}>VENCIMENTO / ATRASO</th>
-                                            <th style={{ padding: '8px', textAlign: 'right', fontWeight: '600', width: '25%' }}>VALOR CORRIGIDO</th>
+                                            <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', width: '10%' }}>UND</th>
+                                            <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', width: '35%' }}>MORADOR RESPONSÁVEL</th>
+                                            <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', width: '30%' }}>VENCIMENTO / ATRASO</th>
+                                            <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', width: '25%' }}>VALOR CORRIGIDO</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {reportData.defaulters.map(d => (
                                             <tr key={d.id} style={{ borderBottom: '1px solid #fff3eb' }}>
-                                                <td style={{ padding: '12px 8px', fontWeight: '700', color: '#7c2d12' }}>{d.residents?.unit_number}</td>
-                                                <td style={{ padding: '12px 8px', color: '#431407' }}>
+                                                <td style={{ padding: '16px 12px', fontWeight: '700', color: '#7c2d12' }}>{d.residents?.unit_number}</td>
+                                                <td style={{ padding: '16px 12px', color: '#431407' }}>
                                                     {d.residents?.name}
-                                                    <span style={{ display: 'block', fontSize: '10px', color: '#9a3412', opacity: 0.7 }}>{d.residents?.block}</span>
+                                                    <span style={{ display: 'block', fontSize: '11px', color: '#9a3412', opacity: 0.7 }}>{d.residents?.block}</span>
                                                 </td>
-                                                <td style={{ padding: '12px 8px', color: '#c2410c' }}>
+                                                <td style={{ padding: '16px 12px', color: '#c2410c' }}>
                                                     {formatDate(d.due_date)}
-                                                    <span style={{ marginLeft: '8px', fontSize: '11px', backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: '4px', fontWeight: '600' }}>
+                                                    <span style={{ marginLeft: '12px', fontSize: '12px', backgroundColor: '#fee2e2', color: '#991b1b', padding: '4px 8px', borderRadius: '4px', fontWeight: '600' }}>
                                                         {d.daysLate} dias
                                                     </span>
                                                 </td>
-                                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '700', color: '#7c2d12', fontFamily: 'monospace', fontSize: '13px' }}>
+                                                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: '700', color: '#7c2d12', fontFamily: 'monospace', fontSize: '14px' }}>
                                                     {formatCurrency(d.calculatedTotal)}
                                                 </td>
                                             </tr>
@@ -269,11 +269,10 @@ export default function Reports() {
                             </div>
                         </div>
 
-                        {/* RODAPÉ TÉCNICO */}
-                        <div style={{ marginTop: '40px', borderTop: '1px solid #e5e7eb', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#9ca3af' }}>
+                        <div style={{ marginTop: '40px', borderTop: '1px solid #e5e7eb', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#9ca3af' }}>
                             <div>CONDOMANAGER SYSTEM VER. 2.0</div>
                             <div>RELATÓRIO GERADO AUTOMATICAMENTE EM {new Date().toLocaleDateString()} ÁS {new Date().toLocaleTimeString()}</div>
-                            <div>PÁGINA 1/1</div>
+                            <div>DOCUMENTO DE AUDITORIA INTERNA</div>
                         </div>
                     </>
                 )}
@@ -283,7 +282,13 @@ export default function Reports() {
                 @media print {
                     .no-print { display: none !important; }
                     body { background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                    .report-sheet { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; padding: 0 !important; }
+                    .report-sheet { 
+                        box-shadow: none !important; 
+                        margin: 0 !important; 
+                        width: 100% !important; 
+                        max-width: none !important; 
+                        padding: 0 !important; 
+                    }
                 }
             `}</style>
         </div>
