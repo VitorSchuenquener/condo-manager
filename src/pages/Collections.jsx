@@ -110,18 +110,25 @@ export default function Collections() {
                     amount,
                     due_date,
                     description,
+                    status,
                     resident_id,
                     residents (id, name, unit_number, block, phone, email)
                 `)
-                .eq('status', 'pendente')
+            // REMOVIDO: .eq('status', 'pendente') -> Vamos filtrar na memória para garantir
 
-            // 2. Filtrar apenas as que estão REALMENTE atrasadas
+            // 2. Filtrar: Status "pendente" (sem case sensitive) E Atrasadas
             const today = new Date()
-            today.setHours(0, 0, 0, 0) // Zerar horas para comparar apenas a data
+            today.setHours(0, 0, 0, 0)
 
             const overdueOnly = overdueData?.filter(bill => {
-                const dueDate = new Date(bill.due_date + 'T00:00:00') // Forçar timezone local
+                // 1. Verificar status (garantir que pega 'pendente', 'Pendente', etc)
+                const status = bill.status?.toLowerCase().trim()
+                if (status !== 'pendente' && status !== 'atrasado') return false
+
+                // 2. Verificar data
+                const dueDate = new Date(bill.due_date + 'T00:00:00')
                 dueDate.setHours(0, 0, 0, 0)
+
                 return today > dueDate
             }) || []
 
