@@ -650,41 +650,67 @@ export default function AccountsReceivable() {
                 </div>
             )}
 
-            {/* Modal de Recebimento com Upload de NF */}
+            {/* Modal de Recebimento Profissional */}
             {showReceiptModal && selectedReceivable && (
                 <div className="modal-overlay">
-                    <div className="modal">
-                        <div className="modal-header">
-                            <h2 className="modal-title">💵 Registrar Recebimento</h2>
-                            <button className="modal-close" onClick={() => setShowReceiptModal(false)}>&times;</button>
+                    <div className="modal" style={{ maxWidth: '600px', borderRadius: '12px', overflow: 'hidden' }}>
+
+                        {/* Header Elegante */}
+                        <div className="modal-header bg-gray-50 border-b border-gray-100 p-lg">
+                            <div className="flex items-center gap-sm">
+                                <div className="p-2 bg-green-100 rounded-full text-xl">💵</div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-dark">Registrar Recebimento</h2>
+                                    <p className="text-xs text-gray-500">Confirme os dados e anexe o comprovante</p>
+                                </div>
+                            </div>
+                            <button
+                                className="text-gray-400 hover:text-gray-600 text-2xl"
+                                onClick={() => setShowReceiptModal(false)}
+                            >
+                                &times;
+                            </button>
                         </div>
 
-                        <form onSubmit={handleReceiptSubmit}>
-                            {/* Informações da Conta */}
-                            <div className="bg-gray-50 p-md rounded mb-md">
-                                <p className="text-sm text-gray mb-xs"><strong>Descrição:</strong> {selectedReceivable.description}</p>
-                                <p className="text-sm text-gray mb-xs"><strong>Morador:</strong> {selectedReceivable.residents?.name || 'Receita Avulsa'}</p>
-                                <p className="text-sm text-gray mb-xs"><strong>Vencimento:</strong> {simpleDate(selectedReceivable.due_date)}</p>
-                                {selectedReceivable.daysLate > 0 && (
-                                    <p className="text-sm text-danger font-bold">⚠️ {selectedReceivable.daysLate} dias de atraso</p>
-                                )}
+                        <form onSubmit={handleReceiptSubmit} className="p-lg">
+
+                            {/* Card de Resumo do Boleto */}
+                            <div className="bg-blue-50 rounded-lg p-md mb-lg border border-blue-100 flex justify-between items-center">
+                                <div>
+                                    <p className="text-xs text-blue-500 font-bold uppercase tracking-wider mb-1">Detalhes da Cobrança</p>
+                                    <h3 className="font-bold text-dark">{selectedReceivable.description}</h3>
+                                    <p className="text-sm text-gray-600">
+                                        {selectedReceivable.residents ? selectedReceivable.residents.name : 'Avulso'}
+                                        {selectedReceivable.residents && ` • Apto ${selectedReceivable.residents.unit_number}`}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-gray-500 mb-1">Vencimento</p>
+                                    <p className="font-medium text-dark">{simpleDate(selectedReceivable.due_date)}</p>
+                                    {selectedReceivable.daysLate > 0 && (
+                                        <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">
+                                            {selectedReceivable.daysLate} dias atraso
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-md">
+                            {/* Inputs Lado a Lado */}
+                            <div className="grid grid-cols-2 gap-md mb-md">
                                 <div className="input-group">
-                                    <label className="input-label">Data do Recebimento</label>
+                                    <label className="text-xs font-bold text-gray-600 mb-1 block">Data do Pagamento</label>
                                     <input
                                         type="date"
-                                        className="input"
+                                        className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                         value={receiptData.payment_date}
                                         onChange={(e) => setReceiptData({ ...receiptData, payment_date: e.target.value })}
                                         required
                                     />
                                 </div>
                                 <div className="input-group">
-                                    <label className="input-label">Forma de Pagamento</label>
+                                    <label className="text-xs font-bold text-gray-600 mb-1 block">Forma de Pagamento</label>
                                     <select
-                                        className="input"
+                                        className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
                                         value={receiptData.payment_method}
                                         onChange={(e) => setReceiptData({ ...receiptData, payment_method: e.target.value })}
                                     >
@@ -697,55 +723,86 @@ export default function AccountsReceivable() {
                                 </div>
                             </div>
 
-                            <div className="input-group">
-                                <label className="input-label">Valor Recebido (com juros/multa)</label>
-                                <input
-                                    type="text"
-                                    className="input font-bold text-lg"
-                                    value={formatCurrency(receiptData.payment_amount)}
-                                    readOnly
-                                    style={{ background: '#f0f9ff' }}
-                                />
-                                {selectedReceivable.daysLate > 0 && (
-                                    <p className="text-xs text-gray mt-xs">
-                                        Original: {formatCurrency(selectedReceivable.amount)} +
-                                        Multa: {formatCurrency(selectedReceivable.penalty)} +
-                                        Juros: {formatCurrency(selectedReceivable.interest)}
-                                    </p>
-                                )}
+                            {/* Valor Total Destacado */}
+                            <div className="mb-lg">
+                                <label className="text-xs font-bold text-gray-600 mb-1 block">Valor Recebido (Total)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 font-medium">R$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-300 rounded font-mono text-xl font-bold text-dark focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                                        value={receiptData.payment_amount}
+                                        onChange={(e) => setReceiptData({ ...receiptData, payment_amount: e.target.value })}
+                                    />
+                                </div>
+
+                                {/* Detalhamento do Cálculo */}
+                                <div className="mt-2 text-xs text-gray-500 flex items-center gap-2 justify-end">
+                                    <span>Original: <strong>{formatCurrency(selectedReceivable.amount)}</strong></span>
+                                    {selectedReceivable.daysLate > 0 && (
+                                        <>
+                                            <span>+</span>
+                                            <span className="text-red-500">Multa: {formatCurrency(selectedReceivable.penalty)}</span>
+                                            <span>+</span>
+                                            <span className="text-red-500">Juros: {formatCurrency(selectedReceivable.interest)}</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* Upload Obrigatório de Comprovante */}
-                            <div className="input-group">
-                                <label className="input-label text-danger font-bold">📄 Nota Fiscal / Comprovante (OBRIGATÓRIO)</label>
+                            {/* Upload Profissional */}
+                            <div className="input-group mb-sm">
+                                <label className="text-xs font-bold text-gray-600 mb-1 block flex justify-between">
+                                    <span>Comprovante / Nota Fiscal <span className="text-red-500">*</span></span>
+                                    {uploadedProof && <button type="button" onClick={(e) => { e.stopPropagation(); setUploadedProof(null) }} className="text-red-500 hover:underline text-xs">Remover</button>}
+                                </label>
+
                                 <div
                                     {...getRootProps()}
-                                    className={`border-2 border-dashed rounded p-lg text-center cursor-pointer transition-colors ${isDragActive ? 'border-success bg-green-50' : uploadedProof ? 'border-success bg-green-50' : 'border-danger bg-red-50'
-                                        }`}
+                                    className={`
+                                        border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200
+                                        ${uploadedProof
+                                            ? 'border-green-400 bg-green-50'
+                                            : isDragActive
+                                                ? 'border-blue-400 bg-blue-50'
+                                                : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                                        }
+                                    `}
                                 >
                                     <input {...getInputProps()} />
+
                                     {uploadedProof ? (
-                                        <div className="text-success font-medium">
-                                            ✅ {uploadedProof.name}
-                                            <p className="text-xs mt-xs">Clique ou arraste outro para substituir</p>
+                                        <div className="flex flex-col items-center animate-fade-in">
+                                            <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-2 text-xl">
+                                                📄
+                                            </div>
+                                            <p className="font-bold text-green-700 text-sm">{uploadedProof.name}</p>
+                                            <p className="text-xs text-green-600 mt-1">Pronto para envio</p>
                                         </div>
                                     ) : (
-                                        <div className={isDragActive ? 'text-success' : 'text-danger'}>
-                                            <p className="font-bold mb-xs">⚠️ Anexe a NF ou Comprovante</p>
-                                            <p className="text-sm">Arraste o arquivo ou clique aqui</p>
-                                            <p className="text-xs text-gray mt-xs">PDF ou Imagem</p>
+                                        <div className="flex flex-col items-center">
+                                            <div className="text-gray-300 text-3xl mb-2">☁️</div>
+                                            <p className="font-medium text-gray-600 text-sm">Clique ou arraste o comprovante aqui</p>
+                                            <p className="text-xs text-gray-400 mt-1">Suporta PDF, JPG, PNG</p>
                                         </div>
                                     )}
                                 </div>
-                                <p className="text-xs text-gray mt-xs">
-                                    ⚖️ <strong>Compliance Contábil:</strong> Todo recebimento precisa de comprovante fiscal para registro no balancete.
+                            </div>
+
+                            {/* Compliance Info */}
+                            <div className="bg-yellow-50 border border-yellow-100 rounded p-3 mb-lg flex items-start gap-2">
+                                <span className="text-yellow-600 mt-0.5">ℹ️</span>
+                                <p className="text-xs text-yellow-800 leading-relaxed">
+                                    <strong>Compliance:</strong> É obrigatório anexar o comprovante bancário ou nota fiscal para que este recebimento seja auditável no balancete mensal.
                                 </p>
                             </div>
 
-                            <div className="flex justify-center gap-md mt-lg">
+                            {/* Footer / Actions */}
+                            <div className="flex justify-end gap-md pt-4 border-t border-gray-100">
                                 <button
                                     type="button"
-                                    className="btn btn-outline"
+                                    className="px-6 py-2 rounded-lg text-gray-600 font-medium hover:bg-gray-100 transition-colors"
                                     onClick={() => setShowReceiptModal(false)}
                                     disabled={uploading}
                                 >
@@ -753,10 +810,19 @@ export default function AccountsReceivable() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="btn btn-success"
+                                    className={`
+                                        pl-4 pr-6 py-2 rounded-lg text-white font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all
+                                        ${uploading || !uploadedProof ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'}
+                                    `}
                                     disabled={uploading || !uploadedProof}
                                 >
-                                    {uploading ? 'Processando...' : '✅ Confirmar Recebimento'}
+                                    {uploading ? (
+                                        <>Creating...</>
+                                    ) : (
+                                        <>
+                                            <span>✅</span> Confirmar Recebimento
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </form>
