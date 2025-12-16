@@ -44,42 +44,106 @@ export default function Reports() {
 
             // Buscando dados do mês atual (RECEITAS e DESPESAS)
             // Usamos strings diretas que o Supabase entende sem converter timezone
-            const { data: receipts } = await supabase
+            // Buscando TODOS os pagamentos para filtrar no JS (estratégia mais robusta para corrigir erros de lançamento de data)
+            const { data: allReceipts } = await supabase
                 .from('accounts_receivable')
-                .select('*, residents(name, unit_number)')
+                .select('total_amount, payment_date, due_date, description, status')
                 .eq('status', 'pago')
-                .gte('payment_date', startDateStr)
-                .lte('payment_date', endDateStr)
 
-            const { data: expenses } = await supabase
+            const { data: allExpenses } = await supabase
                 .from('accounts_payable')
-                .select('*')
+                .select('amount, payment_date, due_date, description, status')
                 .eq('status', 'pago')
-                .gte('payment_date', startDateStr)
-                .lte('payment_date', endDateStr)
 
-            // Buscando SALDO ANTERIOR (Tudo antes do dia 01 do mês atual)
-            const { data: prevReceipts } = await supabase
-                .from('accounts_receivable')
-                .select('total_amount')
-                .eq('status', 'pago')
-                .lt('payment_date', startDateStr) // Estritamente menor que 01/MM
+            // --- LÓGICA INTELIGENTE DE CAIXA ---
+            // Processa o Saldo Anterior considerando:
+            // 1. Pagamento Realizado ANTES do dia 01 (Regime de Caixa Oficial)
+            // 2. OU Itens de "SALDO" corrigidos (Se a descrição for SALDO e o Vencimento for Antigo, consideramos como anterior mesmo que o usuário tenha errado a data de pagamento para hoje)
 
-            const { data: prevExpenses } = await supabase
-                .from('accounts_payable')
-                .select('amount')
-                .eq('status', 'pago')
-                .lt('payment_date', startDateStr)
+            const calculatePreviousBalance = (allItems, isExpense) => {
+                return (allItems || []).reduce((acc, item) => {
+                    const payDate = item.payment_date ? item.payment_date.slice(0, 10) : ''
+                    const dueDate = item.due_date ? item.due_date.slice(0, 10) : ''
+                    const amount = Number(isExpense ? item.amount : item.total_amount) || 0
 
-            const totalPrevRevenue = prevReceipts?.reduce((acc, curr) => acc + (Number(curr.total_amount) || 0), 0) || 0
-            const totalPrevExpenses = prevExpenses?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0
+                    // Regra 1: Pagamento foi mês passado?
+                    if (payDate < startDateStr) return acc + amount
+
+                    // Regra 2: Correção para "SALDO INICIAL" lançado errado
+                    // Se o usuário lançou "Saldo" com vencimento mês passado, mas deu baixa hoje, consideramos mês passado.
+                    const isBalanceItem = item.description?.toUpperCase().includes('SALDO')
+                    if (isBalanceItem && dueDate < startDateStr) return acc + amount
+
+                    return acc
+                }, 0)
+            }
+
+            const totalPrevRevenue = calculatePreviousBalance(allReceipts, false)
+            const totalPrevExpenses = calculatePreviousBalance(allExpenses, true)
+
+            // --- CÁLCULO DO MÊS ATUAL ---
+            // Somente o que cai estritamente dentro deste mês (e que não foi capturado como Saldo Anterior)
+            const calculateCurrentMonth = (allItems, isExpense) => {
+                return (allItems || []).reduce((acc, item) => {
+                    const payDate = item.payment_date ? item.payment_date.slice(0, 10) : ''
+                    const dueDate = item.due_date ? item.due_date.slice(0, 10) : ''
+                    const amount = Number(isExpense ? item.amount : item.total_amount) || 0
+
+                    // Se já foi contado como saldo anterior pela lógica acima, ignoramos aqui para não duplicar
+                    const isBalanceItem = item.description?.toUpperCase().includes('SALDO')
+                    if (payDate < startDateStr) return acc; // Já é passado
+                    if (isBalanceItem && dueDate < startDateStr) return acc; // Já contado como passado
+
+                    // Se está dentro do range do mês atual
+                    if (payDate >= startDateStr && payDate <= endDateStr.slice(0, 10)) return acc + amount
+
+                    return acc
+                }, 0)
+            }
+
+            const totalRevenue = calculateCurrentMonth(allReceipts, false)
+            const totalExpenses = calculateCurrentMonth(allExpenses, true)
+
+            // Re-filtrar listas para exibição nas tabelas (apenas itens do mês)
+            const currentReceiptsDisplay = (allReceipts || []).filter(item => {
+                const payDate = item.payment_date ? item.payment_date.slice(0, 10) : ''
+                const dueDate = item.due_date ? item.due_date.slice(0, 10) : ''
+                const isBalanceItem = item.description?.toUpperCase().includes('SALDO')
+                if (payDate < startDateStr) return false
+                if (isBalanceItem && dueDate < startDateStr) return false
+                return payDate >= startDateStr && payDate <= endDateStr.slice(0, 10)
+            })
+
+            const currentExpensesDisplay = (allExpenses || []).filter(item => {
+                const payDate = item.payment_date ? item.payment_date.slice(0, 10) : ''
+                const dueDate = item.due_date ? item.due_date.slice(0, 10) : ''
+                const isBalanceItem = item.description?.toUpperCase().includes('SALDO')
+                if (payDate < startDateStr) return false
+                if (isBalanceItem && dueDate < startDateStr) return false
+                return payDate >= startDateStr && payDate <= endDateStr.slice(0, 10)
+            })
+
+            // Precisamos dos dados completos (residents) para a tabela de exibição
+            // Como fiz select simplificado acima, vou buscar o completo dos itens filtrados ou usar a lógica anterior apenas para exibição
+            // Para simplificar e não quebrar o layout, farei a busca completa normal para a renderização da TABELA, 
+            // mas usarei os TOTAIS calculados acima para o Card de Saldo.
+
+            // BUSCA PARA TABELAS (Apenas mês atual, sem a logica de Saldo)
+            const { data: displayReceipts } = await supabase.from('accounts_receivable').select('*, residents(name, unit_number)').eq('status', 'pago').gte('payment_date', startDateStr).lte('payment_date', endDateStr)
+            const { data: displayExpenses } = await supabase.from('accounts_payable').select('*').eq('status', 'pago').gte('payment_date', startDateStr).lte('payment_date', endDateStr)
+
+            // CORREÇÃO: Remover "SALDO" das tabelas de Entradas se ele foi jogado pro passado
+            const finalDisplayReceipts = (displayReceipts || []).filter(r => {
+                const isBalance = r.description?.toUpperCase().includes('SALDO')
+                const dueOld = r.due_date < startDateStr
+                return !(isBalance && dueOld) // Oculta da lista do mês se for saldo antigo
+            })
             const previousBalance = totalPrevRevenue - totalPrevExpenses
 
             const todayStr = new Date().toISOString().split('T')[0]
             const { data: defaulters } = await supabase.from('accounts_receivable').select('*, residents(name, unit_number, block)').lt('due_date', todayStr).neq('status', 'pago').order('due_date')
 
-            const totalRevenue = receipts?.reduce((acc, r) => acc + (Number(r.total_amount) || 0), 0) || 0
-            const totalExpenses = expenses?.reduce((acc, e) => acc + (Number(e.amount) || 0), 0) || 0
+            // Totais já foram calculados nas funções acima (calculateCurrentMonth), então usamos eles direto.
             const currentBalance = previousBalance + totalRevenue - totalExpenses
 
             const processedDefaulters = (defaulters || []).map(bill => {
@@ -116,8 +180,8 @@ export default function Reports() {
             const totalDefaults = processedDefaulters.reduce((acc, curr) => acc + curr.calculatedTotal, 0)
 
             setReportData({
-                receipts: receipts || [],
-                expenses: expenses || [],
+                receipts: finalDisplayReceipts || [], // Usando a lista filtrada (sem saldo "falso")
+                expenses: displayExpenses || [],
                 defaulters: processedDefaulters,
                 summary: {
                     revenue: totalRevenue,
