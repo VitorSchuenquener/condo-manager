@@ -650,45 +650,80 @@ export default function AccountsReceivable() {
                 </div>
             )}
 
-            {/* Modal de Recebimento Profissional */}
+            {/* Modal de Recebimento Profissional - CORRIGIDO com Estilos Inline */}
             {showReceiptModal && selectedReceivable && (
                 <div className="modal-overlay">
-                    <div className="modal" style={{ maxWidth: '600px', borderRadius: '12px', overflow: 'hidden' }}>
+                    <div className="modal" style={{ maxWidth: '600px', borderRadius: '12px', overflow: 'hidden', padding: 0 }}>
 
                         {/* Header Elegante */}
-                        <div className="modal-header bg-gray-50 border-b border-gray-100 p-lg">
-                            <div className="flex items-center gap-sm">
-                                <div className="p-2 bg-green-100 rounded-full text-xl">💵</div>
+                        <div style={{
+                            backgroundColor: '#f8fafc',
+                            borderBottom: '1px solid #e2e8f0',
+                            padding: '20px 24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{
+                                    background: '#dcfce7',
+                                    color: '#166534',
+                                    borderRadius: '50%',
+                                    width: '40px',
+                                    height: '40px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '20px'
+                                }}>💵</div>
                                 <div>
-                                    <h2 className="text-lg font-bold text-dark">Registrar Recebimento</h2>
-                                    <p className="text-xs text-gray-500">Confirme os dados e anexe o comprovante</p>
+                                    <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#1e293b' }}>Registrar Recebimento</h2>
+                                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Confirme os dados e anexe o comprovante</p>
                                 </div>
                             </div>
                             <button
-                                className="text-gray-400 hover:text-gray-600 text-2xl"
                                 onClick={() => setShowReceiptModal(false)}
+                                style={{ background: 'none', border: 'none', fontSize: '24px', color: '#94a3b8', cursor: 'pointer' }}
                             >
                                 &times;
                             </button>
                         </div>
 
-                        <form onSubmit={handleReceiptSubmit} className="p-lg">
+                        <form onSubmit={handleReceiptSubmit} style={{ padding: '24px' }}>
 
                             {/* Card de Resumo do Boleto */}
-                            <div className="bg-blue-50 rounded-lg p-md mb-lg border border-blue-100 flex justify-between items-center">
+                            <div style={{
+                                backgroundColor: '#eff6ff',
+                                border: '1px solid #dbeafe',
+                                borderRadius: '8px',
+                                padding: '16px',
+                                marginBottom: '24px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}>
                                 <div>
-                                    <p className="text-xs text-blue-500 font-bold uppercase tracking-wider mb-1">Detalhes da Cobrança</p>
-                                    <h3 className="font-bold text-dark">{selectedReceivable.description}</h3>
-                                    <p className="text-sm text-gray-600">
+                                    <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#3b82f6', textTransform: 'uppercase', marginBottom: '4px' }}>Detalhes da Cobrança</p>
+                                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1e293b' }}>{selectedReceivable.description}</h3>
+                                    <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#475569' }}>
                                         {selectedReceivable.residents ? selectedReceivable.residents.name : 'Avulso'}
                                         {selectedReceivable.residents && ` • Apto ${selectedReceivable.residents.unit_number}`}
                                     </p>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-gray-500 mb-1">Vencimento</p>
-                                    <p className="font-medium text-dark">{simpleDate(selectedReceivable.due_date)}</p>
+                                <div style={{ textAlign: 'right' }}>
+                                    <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Vencimento</p>
+                                    <p style={{ margin: 0, fontWeight: '500', color: '#1e293b' }}>{simpleDate(selectedReceivable.due_date)}</p>
                                     {selectedReceivable.daysLate > 0 && (
-                                        <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">
+                                        <span style={{
+                                            display: 'inline-block',
+                                            marginTop: '4px',
+                                            padding: '2px 6px',
+                                            background: '#fee2e2',
+                                            color: '#dc2626',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            borderRadius: '4px'
+                                        }}>
                                             {selectedReceivable.daysLate} dias atraso
                                         </span>
                                     )}
@@ -696,21 +731,23 @@ export default function AccountsReceivable() {
                             </div>
 
                             {/* Inputs Lado a Lado */}
-                            <div className="grid grid-cols-2 gap-md mb-md">
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '16px' }}>
                                 <div className="input-group">
-                                    <label className="text-xs font-bold text-gray-600 mb-1 block">Data do Pagamento</label>
+                                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '6px' }}>Data do Pagamento</label>
                                     <input
                                         type="date"
-                                        className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                        className="input"
+                                        style={{ width: '100%' }}
                                         value={receiptData.payment_date}
                                         onChange={(e) => setReceiptData({ ...receiptData, payment_date: e.target.value })}
                                         required
                                     />
                                 </div>
                                 <div className="input-group">
-                                    <label className="text-xs font-bold text-gray-600 mb-1 block">Forma de Pagamento</label>
+                                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '6px' }}>Forma de Pagamento</label>
                                     <select
-                                        className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
+                                        className="input"
+                                        style={{ width: '100%' }}
                                         value={receiptData.payment_method}
                                         onChange={(e) => setReceiptData({ ...receiptData, payment_method: e.target.value })}
                                     >
@@ -724,100 +761,116 @@ export default function AccountsReceivable() {
                             </div>
 
                             {/* Valor Total Destacado */}
-                            <div className="mb-lg">
-                                <label className="text-xs font-bold text-gray-600 mb-1 block">Valor Recebido (Total)</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 font-medium">R$</span>
+                            <div style={{ marginBottom: '24px' }}>
+                                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '6px' }}>Valor Recebido (Total)</label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontWeight: '500' }}>R$</span>
                                     <input
                                         type="number"
                                         step="0.01"
-                                        className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-300 rounded font-mono text-xl font-bold text-dark focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                                        className="input"
+                                        style={{
+                                            width: '100%',
+                                            paddingLeft: '36px',
+                                            fontSize: '20px',
+                                            fontWeight: 'bold',
+                                            color: '#1e293b',
+                                            height: '48px',
+                                            background: '#f8fafc'
+                                        }}
                                         value={receiptData.payment_amount}
                                         onChange={(e) => setReceiptData({ ...receiptData, payment_amount: e.target.value })}
                                     />
                                 </div>
 
                                 {/* Detalhamento do Cálculo */}
-                                <div className="mt-2 text-xs text-gray-500 flex items-center gap-2 justify-end">
+                                <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
                                     <span>Original: <strong>{formatCurrency(selectedReceivable.amount)}</strong></span>
                                     {selectedReceivable.daysLate > 0 && (
                                         <>
                                             <span>+</span>
-                                            <span className="text-red-500">Multa: {formatCurrency(selectedReceivable.penalty)}</span>
+                                            <span style={{ color: '#ef4444' }}>Multa: {formatCurrency(selectedReceivable.penalty)}</span>
                                             <span>+</span>
-                                            <span className="text-red-500">Juros: {formatCurrency(selectedReceivable.interest)}</span>
+                                            <span style={{ color: '#ef4444' }}>Juros: {formatCurrency(selectedReceivable.interest)}</span>
                                         </>
                                     )}
                                 </div>
                             </div>
 
                             {/* Upload Profissional */}
-                            <div className="input-group mb-sm">
-                                <label className="text-xs font-bold text-gray-600 mb-1 block flex justify-between">
-                                    <span>Comprovante / Nota Fiscal <span className="text-red-500">*</span></span>
-                                    {uploadedProof && <button type="button" onClick={(e) => { e.stopPropagation(); setUploadedProof(null) }} className="text-red-500 hover:underline text-xs">Remover</button>}
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                    <span>Comprovante / Nota Fiscal <span style={{ color: '#ef4444' }}>*</span></span>
+                                    {uploadedProof && <button type="button" onClick={(e) => { e.stopPropagation(); setUploadedProof(null) }} style={{ color: '#ef4444', background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}>Remover</button>}
                                 </label>
 
                                 <div
                                     {...getRootProps()}
-                                    className={`
-                                        border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200
-                                        ${uploadedProof
-                                            ? 'border-green-400 bg-green-50'
-                                            : isDragActive
-                                                ? 'border-blue-400 bg-blue-50'
-                                                : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
-                                        }
-                                    `}
+                                    style={{
+                                        border: `2px dashed ${uploadedProof ? '#4ade80' : isDragActive ? '#60a5fa' : '#cbd5e1'}`,
+                                        borderRadius: '8px',
+                                        padding: '24px',
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        backgroundColor: uploadedProof ? '#f0fdf4' : isDragActive ? '#eff6ff' : '#fff',
+                                        transition: 'all 0.2s'
+                                    }}
                                 >
                                     <input {...getInputProps()} />
 
                                     {uploadedProof ? (
-                                        <div className="flex flex-col items-center animate-fade-in">
-                                            <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-2 text-xl">
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <div style={{ width: '40px', height: '40px', background: '#dcfce7', color: '#166534', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', marginBottom: '8px' }}>
                                                 📄
                                             </div>
-                                            <p className="font-bold text-green-700 text-sm">{uploadedProof.name}</p>
-                                            <p className="text-xs text-green-600 mt-1">Pronto para envio</p>
+                                            <p style={{ fontWeight: 'bold', color: '#15803d', fontSize: '14px', margin: 0 }}>{uploadedProof.name}</p>
+                                            <p style={{ fontSize: '12px', color: '#16a34a', margin: '4px 0 0' }}>Pronto para envio</p>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center">
-                                            <div className="text-gray-300 text-3xl mb-2">☁️</div>
-                                            <p className="font-medium text-gray-600 text-sm">Clique ou arraste o comprovante aqui</p>
-                                            <p className="text-xs text-gray-400 mt-1">Suporta PDF, JPG, PNG</p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <div style={{ fontSize: '28px', color: '#cbd5e1', marginBottom: '8px' }}>☁️</div>
+                                            <p style={{ fontWeight: '500', color: '#475569', fontSize: '14px', margin: 0 }}>Clique ou arraste o comprovante aqui</p>
+                                            <p style={{ fontSize: '12px', color: '#94a3b8', margin: '4px 0 0' }}>Suporta PDF, JPG, PNG</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
                             {/* Compliance Info */}
-                            <div className="bg-yellow-50 border border-yellow-100 rounded p-3 mb-lg flex items-start gap-2">
-                                <span className="text-yellow-600 mt-0.5">ℹ️</span>
-                                <p className="text-xs text-yellow-800 leading-relaxed">
+                            <div style={{ backgroundColor: '#fefce8', border: '1px solid #fef9c3', borderRadius: '6px', padding: '12px', marginBottom: '24px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                <span style={{ fontSize: '16px' }}>ℹ️</span>
+                                <p style={{ fontSize: '12px', color: '#854d0e', margin: 0, lineHeight: '1.5' }}>
                                     <strong>Compliance:</strong> É obrigatório anexar o comprovante bancário ou nota fiscal para que este recebimento seja auditável no balancete mensal.
                                 </p>
                             </div>
 
                             {/* Footer / Actions */}
-                            <div className="flex justify-end gap-md pt-4 border-t border-gray-100">
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
                                 <button
                                     type="button"
-                                    className="px-6 py-2 rounded-lg text-gray-600 font-medium hover:bg-gray-100 transition-colors"
+                                    className="btn btn-outline"
                                     onClick={() => setShowReceiptModal(false)}
                                     disabled={uploading}
+                                    style={{ padding: '8px 24px' }}
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    className={`
-                                        pl-4 pr-6 py-2 rounded-lg text-white font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all
-                                        ${uploading || !uploadedProof ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'}
-                                    `}
+                                    className="btn btn-success"
+                                    style={{
+                                        padding: '8px 24px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        backgroundColor: (uploading || !uploadedProof) ? '#9ca3af' : '',
+                                        borderColor: (uploading || !uploadedProof) ? '#9ca3af' : '',
+                                        cursor: (uploading || !uploadedProof) ? 'not-allowed' : 'pointer'
+                                    }}
                                     disabled={uploading || !uploadedProof}
                                 >
                                     {uploading ? (
-                                        <>Creating...</>
+                                        'Processando...'
                                     ) : (
                                         <>
                                             <span>✅</span> Confirmar Recebimento
