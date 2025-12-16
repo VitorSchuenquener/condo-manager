@@ -34,14 +34,42 @@ export default function Reports() {
         setLoading(true)
         try {
             const [year, month] = referenceMonth.split('-')
-            const startDate = new Date(year, month - 1, 1)
-            const endDate = new Date(year, month, 0, 23, 59, 59)
 
-            const { data: receipts } = await supabase.from('accounts_receivable').select('*, residents(name, unit_number)').eq('status', 'pago').gte('payment_date', startDate.toISOString()).lte('payment_date', endDate.toISOString())
-            const { data: expenses } = await supabase.from('accounts_payable').select('*').eq('status', 'pago').gte('payment_date', startDate.toISOString()).lte('payment_date', endDate.toISOString())
+            // Construção manual das datas para evitar problemas de fuso horário (UTC vs Local)
+            const startDateStr = `${year}-${month}-01`
 
-            const { data: prevReceipts } = await supabase.from('accounts_receivable').select('total_amount').eq('status', 'pago').lt('payment_date', startDate.toISOString())
-            const { data: prevExpenses } = await supabase.from('accounts_payable').select('amount').eq('status', 'pago').lt('payment_date', startDate.toISOString())
+            // Cálculo do último dia do mês para a string final
+            const lastDay = new Date(year, month, 0).getDate()
+            const endDateStr = `${year}-${month}-${lastDay} 23:59:59`
+
+            // Buscando dados do mês atual (RECEITAS e DESPESAS)
+            // Usamos strings diretas que o Supabase entende sem converter timezone
+            const { data: receipts } = await supabase
+                .from('accounts_receivable')
+                .select('*, residents(name, unit_number)')
+                .eq('status', 'pago')
+                .gte('payment_date', startDateStr)
+                .lte('payment_date', endDateStr)
+
+            const { data: expenses } = await supabase
+                .from('accounts_payable')
+                .select('*')
+                .eq('status', 'pago')
+                .gte('payment_date', startDateStr)
+                .lte('payment_date', endDateStr)
+
+            // Buscando SALDO ANTERIOR (Tudo antes do dia 01 do mês atual)
+            const { data: prevReceipts } = await supabase
+                .from('accounts_receivable')
+                .select('total_amount')
+                .eq('status', 'pago')
+                .lt('payment_date', startDateStr) // Estritamente menor que 01/MM
+
+            const { data: prevExpenses } = await supabase
+                .from('accounts_payable')
+                .select('amount')
+                .eq('status', 'pago')
+                .lt('payment_date', startDateStr)
 
             const totalPrevRevenue = prevReceipts?.reduce((acc, curr) => acc + (Number(curr.total_amount) || 0), 0) || 0
             const totalPrevExpenses = prevExpenses?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0
