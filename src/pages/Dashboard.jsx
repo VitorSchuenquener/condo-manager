@@ -72,8 +72,22 @@ export default function Dashboard() {
             const currentBalance = totalReceived - totalPaid
 
             // Taxa de Inadimplência Atual
+            // Inadimplente = Status (Pendente ou Atrasado) + Data de Vencimento < Hoje
+            const todayDate = new Date()
+            todayDate.setHours(0, 0, 0, 0)
+
             const uniqueDefaulters = new Set(
-                receipts.filter(r => r.status === 'atrasado').map(r => r.resident_id)
+                receipts.filter(r => {
+                    const status = r.status?.toLowerCase().trim()
+                    // 1. Status deve ser pendente ou atrasado
+                    if (status !== 'pendente' && status !== 'atrasado') return false
+
+                    // 2. Data de vencimento deve ser menor que hoje
+                    const dueDate = new Date(r.due_date + 'T00:00:00')
+                    dueDate.setHours(0, 0, 0, 0)
+
+                    return todayDate > dueDate
+                }).map(r => r.resident_id)
             ).size
 
             const defaultRate = residentsCount > 0
