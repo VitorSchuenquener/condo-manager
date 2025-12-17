@@ -13,7 +13,7 @@ async function debugCollections() {
         console.log('1️⃣  Buscando TODAS as contas (sem filtro de status)...');
         const { data: allBills, error } = await supabase
             .from('accounts_receivable')
-            .select('id, description, due_date, status, resident_id');
+            .select('id, description, due_date, status, resident_id')
 
         if (error) throw error;
 

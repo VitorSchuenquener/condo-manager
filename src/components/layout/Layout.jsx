@@ -37,7 +37,6 @@ export default function Layout({ user }) {
         { path: '/contas-receber', label: 'Contas a Receber', icon: '💰' },
         { path: '/moradores', label: 'Moradores', icon: '👥' },
         { path: '/cobrancas', label: 'Cobranças', icon: '⚖️' },
-        { path: '/folha-pagamento', label: 'Folha de Pagamento', icon: '👔' },
         { path: '/relatorios', label: 'Relatórios', icon: '📈' },
     ]
 

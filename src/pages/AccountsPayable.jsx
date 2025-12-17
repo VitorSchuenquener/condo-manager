@@ -32,7 +32,7 @@ export default function AccountsPayable() {
     const categories = [
         { value: 'agua', label: 'Água' },
         { value: 'luz', label: 'Energia Elétrica' },
-        { value: 'salarios', label: 'Salários' },
+
         { value: 'manutencao', label: 'Manutenção' },
         { value: 'limpeza', label: 'Limpeza' },
         { value: 'outros', label: 'Outros' }

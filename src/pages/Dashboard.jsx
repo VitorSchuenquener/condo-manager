@@ -147,7 +147,7 @@ export default function Dashboard() {
             const categoryColors = {
                 'agua': '#3b82f6',
                 'luz': '#f59e0b',
-                'salarios': '#10b981',
+
                 'manutencao': '#ef4444',
                 'limpeza': '#8b5cf6',
                 'outros': '#64748b'

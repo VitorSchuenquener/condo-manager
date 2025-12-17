@@ -365,47 +365,63 @@ export default function Reports() {
                                 </div>
 
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                                    <thead style={{ backgroundColor: '#ffedd5', color: '#9a3412' }}>
+                                    <thead style={{ backgroundColor: '#ffedd5', color: '#9a3412', borderBottom: '2px solid #fdba74' }}>
                                         <tr>
-                                            <th style={{ padding: '12px 24px', textAlign: 'left', width: '10%' }}>Unidade</th>
-                                            <th style={{ padding: '12px 12px', textAlign: 'left', width: '25%' }}>Morador</th>
-                                            <th style={{ padding: '12px 12px', textAlign: 'center', width: '15%' }}>Vencimento</th>
-                                            <th style={{ padding: '12px 12px', textAlign: 'right', width: '15%' }}>Valor Original</th>
-                                            <th style={{ padding: '12px 12px', textAlign: 'right', width: '20%' }}>Encargos (Multa/Juros)</th>
-                                            <th style={{ padding: '12px 24px', textAlign: 'right', width: '15%' }}>Total Devido</th>
+                                            <th style={{ padding: '12px 16px', textAlign: 'left', width: '8%', textTransform: 'uppercase', fontSize: '11px' }}>Unidade</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'left', width: '22%', textTransform: 'uppercase', fontSize: '11px' }}>Morador / Bloco</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'center', width: '12%', textTransform: 'uppercase', fontSize: '11px' }}>Vencimento</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'right', width: '14%', textTransform: 'uppercase', fontSize: '11px', borderRight: '1px solid #ffd8a8' }}>Valor Original</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'right', width: '12%', textTransform: 'uppercase', fontSize: '11px', color: '#c2410c' }}>Multa (2%)</th>
+                                            <th style={{ padding: '12px 12px', textAlign: 'right', width: '12%', textTransform: 'uppercase', fontSize: '11px', color: '#c2410c', borderRight: '1px solid #ffd8a8' }}>Juros Mora</th>
+                                            <th style={{ padding: '12px 16px', textAlign: 'right', width: '20%', textTransform: 'uppercase', fontSize: '11px' }}>Total Classificado</th>
                                         </tr>
                                     </thead>
                                     <tbody style={{ backgroundColor: 'white' }}>
-                                        {reportData.defaulters.map(d => (
-                                            <tr key={d.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                                <td style={{ padding: '12px 24px', fontWeight: 'bold', color: '#1f2937' }}>{d.residents?.unit_number}</td>
-                                                <td style={{ padding: '12px 12px', color: '#374151' }}>
-                                                    {d.residents?.name}
-                                                    <span style={{ display: 'block', fontSize: '10px', color: '#9ca3af' }}>{d.residents?.block}</span>
+                                        {reportData.defaulters.map((d, index) => (
+                                            <tr key={d.id} style={{ borderBottom: '1px solid #f3f4f6', backgroundColor: index % 2 === 0 ? 'white' : '#fffaf0' }}>
+                                                <td style={{ padding: '10px 16px', fontWeight: 'bold', color: '#1f2937' }}>{d.residents?.unit_number}</td>
+                                                <td style={{ padding: '10px 12px', color: '#374151' }}>
+                                                    <div style={{ fontWeight: '600' }}>{d.residents?.name}</div>
+                                                    <div style={{ fontSize: '10px', color: '#6b7280' }}>{d.residents?.block ? `Bloco ${d.residents.block}` : ''}</div>
                                                 </td>
-                                                <td style={{ padding: '12px 12px', textAlign: 'center', color: '#dc2626' }}>
-                                                    {formatDate(d.due_date)}
-                                                    <span style={{ display: 'block', fontSize: '10px', fontWeight: 'bold' }}>{d.daysLate} dias atraso</span>
+                                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                                    <div style={{ color: '#dc2626', fontWeight: '500' }}>{formatDate(d.due_date)}</div>
+                                                    <div style={{ fontSize: '9px', fontWeight: 'bold', color: '#ef4444', marginTop: '2px', backgroundColor: '#fee2e2', display: 'inline-block', padding: '1px 6px', borderRadius: '4px' }}>
+                                                        {d.daysLate} DIAS
+                                                    </div>
                                                 </td>
-                                                <td style={{ padding: '12px 12px', textAlign: 'right', color: '#4b5563' }}>
+                                                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#4b5563', fontFamily: 'monospace', fontSize: '13px', fontWeight: '500', borderRight: '1px solid #f3f4f6' }}>
                                                     {formatCurrency(d.original)}
                                                 </td>
-                                                <td style={{ padding: '12px 12px', textAlign: 'right', color: '#d97706' }}>
-                                                    <div>+ {formatCurrency(d.fine + d.interest)}</div>
-                                                    <div style={{ fontSize: '10px', opacity: 0.8 }}>(M: {formatCurrency(d.fine)} / J: {formatCurrency(d.interest)})</div>
+                                                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#d97706', fontFamily: 'monospace', fontSize: '13px' }}>
+                                                    {formatCurrency(d.fine)}
                                                 </td>
-                                                <td style={{ padding: '12px 24px', textAlign: 'right', fontWeight: 'bold', color: '#9a3412', fontSize: '13px' }}>
+                                                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#d97706', fontFamily: 'monospace', fontSize: '13px', borderRight: '1px solid #f3f4f6' }}>
+                                                    {formatCurrency(d.interest)}
+                                                </td>
+                                                <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 'bold', color: '#9a3412', fontSize: '14px', fontFamily: 'monospace' }}>
                                                     {formatCurrency(d.calculatedTotal)}
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                     {/* FOOTER BARRA CORRIDA */}
-                                    <tfoot style={{ backgroundColor: '#fff7ed' }}>
+                                    <tfoot style={{ backgroundColor: '#ffedd5', borderTop: '2px solid #fdba74' }}>
                                         <tr>
-                                            <td colSpan="6" style={{ padding: '16px 32px', textAlign: 'right' }}>
-                                                <span style={{ fontWeight: 'bold', color: '#9a3412', marginRight: '8px' }}>Total Geral Inadimplência:</span>
-                                                <span style={{ fontWeight: 'bold', color: '#c2410c', fontSize: '15px' }}>{formatCurrency(reportData.summary.defaults)}</span>
+                                            <td colSpan="3" style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 'bold', color: '#9a3412', textTransform: 'uppercase', fontSize: '11px' }}>
+                                                TOTAIS GERAIS ACUMULADOS
+                                            </td>
+                                            <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 'bold', color: '#4b5563', fontFamily: 'monospace', borderRight: '1px solid #ffd8a8' }}>
+                                                {formatCurrency(reportData.defaulters.reduce((acc, d) => acc + d.original, 0))}
+                                            </td>
+                                            <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 'bold', color: '#d97706', fontFamily: 'monospace' }}>
+                                                {formatCurrency(reportData.defaulters.reduce((acc, d) => acc + d.fine, 0))}
+                                            </td>
+                                            <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 'bold', color: '#d97706', fontFamily: 'monospace', borderRight: '1px solid #ffd8a8' }}>
+                                                {formatCurrency(reportData.defaulters.reduce((acc, d) => acc + d.interest, 0))}
+                                            </td>
+                                            <td style={{ padding: '16px 16px', textAlign: 'right', fontWeight: '800', color: '#c2410c', fontSize: '15px', fontFamily: 'monospace' }}>
+                                                {formatCurrency(reportData.summary.defaults)}
                                             </td>
                                         </tr>
                                     </tfoot>

@@ -11,7 +11,7 @@ import AccountsReceivable from './pages/AccountsReceivable'
 import Residents from './pages/Residents'
 import Collections from './pages/Collections'
 import Reports from './pages/Reports'
-import Payroll from './pages/Payroll'
+
 import AdminUsers from './pages/AdminUsers'
 import PendingApproval from './pages/PendingApproval' // Nova página
 
@@ -122,7 +122,7 @@ function App() {
                         <Route path="contas-receber" element={<AccountsReceivable />} />
                         <Route path="moradores" element={<Residents />} />
                         <Route path="cobrancas" element={<Collections />} />
-                        <Route path="folha-pagamento" element={<Payroll />} />
+
                         <Route path="relatorios" element={<Reports />} />
                         <Route path="usuarios" element={<AdminUsers />} />
                     </Route>
