@@ -103,156 +103,163 @@ export default function Collections() {
 
     // Função para Gerar Carta de Cobrança PDF (VERSÃO PROFISSIONAL)
     const generateCollectionLetter = (defaulter) => {
-        console.log('Generating Professional Letter for:', defaulter.resident.name)
-        const doc = new jsPDF()
+        try {
+            console.log('Generating Professional Letter for:', defaulter.resident.name)
+            const doc = new jsPDF()
 
-        // --- PALETA DE CORES ---
-        const PRIMARY_COLOR = [30, 58, 138] // Azul Escuro (Navy)
-        const SECONDARY_COLOR = [220, 38, 38] // Vermelho (Destaque)
-        const TEXT_COLOR = [51, 65, 85] // Cinza Escuro
-        const BG_LIGHT = [241, 245, 249] // Cinza Claro
+            // --- PALETA DE CORES ---
+            const PRIMARY_COLOR = [30, 58, 138] // Azul Escuro (Navy)
+            const SECONDARY_COLOR = [220, 38, 38] // Vermelho (Destaque)
+            const TEXT_COLOR = [51, 65, 85] // Cinza Escuro
+            const BG_LIGHT = [241, 245, 249] // Cinza Claro
 
-        // --- CABEÇALHO ---
-        // Barra lateral colorida
-        doc.setFillColor(...PRIMARY_COLOR)
-        doc.rect(0, 0, 15, 297, 'F') // Lateral esquerda inteira
+            // --- CABEÇALHO ---
+            // Barra lateral colorida
+            doc.setFillColor(...PRIMARY_COLOR)
+            doc.rect(0, 0, 15, 297, 'F') // Lateral esquerda inteira
 
-        // Título do Documento
-        doc.setTextColor(...PRIMARY_COLOR)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(22)
-        doc.text('NOTIFICAÇÃO EXTRAJUDICIAL', 25, 25)
+            // Título do Documento
+            doc.setTextColor(...PRIMARY_COLOR)
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(22)
+            doc.text('NOTIFICAÇÃO EXTRAJUDICIAL', 25, 25)
 
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(100)
-        doc.text('DE COBRANÇA E CONSTITUIÇÃO EM MORA', 25, 30)
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(100)
+            doc.text('DE COBRANÇA E CONSTITUIÇÃO EM MORA', 25, 30)
 
-        // Logo / Nome do Condomínio (Simulado)
-        doc.setFontSize(14)
-        doc.setTextColor(0)
-        doc.setFont('helvetica', 'bold')
-        doc.text('CondoManager System', 190, 25, { align: 'right' })
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        doc.text('Administração Financeira e Jurídica', 190, 30, { align: 'right' })
+            // Logo / Nome do Condomínio (Simulado)
+            doc.setFontSize(14)
+            doc.setTextColor(0)
+            doc.setFont('helvetica', 'bold')
+            doc.text('CondoManager System', 190, 25, { align: 'right' })
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'normal')
+            doc.text('Administração Financeira e Jurídica', 190, 30, { align: 'right' })
 
-        // Linha Divisória
-        doc.setDrawColor(...PRIMARY_COLOR)
-        doc.setLineWidth(0.5)
-        doc.line(25, 35, 190, 35)
+            // Linha Divisória
+            doc.setDrawColor(...PRIMARY_COLOR)
+            doc.setLineWidth(0.5)
+            doc.line(25, 35, 190, 35)
 
-        // --- DESTINATÁRIO (BOX) ---
-        doc.setFillColor(...BG_LIGHT)
-        doc.roundedRect(25, 45, 165, 30, 2, 2, 'F')
+            // --- DESTINATÁRIO (BOX) ---
+            doc.setFillColor(...BG_LIGHT)
+            doc.roundedRect(25, 45, 165, 30, 2, 2, 'F')
 
-        doc.setFontSize(10)
-        doc.setTextColor(...TEXT_COLOR)
-        doc.text('DESTINATÁRIO:', 30, 53)
+            doc.setFontSize(10)
+            doc.setTextColor(...TEXT_COLOR)
+            doc.text('DESTINATÁRIO:', 30, 53)
 
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(0)
-        doc.text(defaulter.resident.name, 30, 60)
+            doc.setFontSize(12)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(0)
+            doc.text(defaulter.resident.name || 'Nome Indisponível', 30, 60)
 
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(11)
-        doc.text(`Unidade: ${defaulter.resident.unit_number} ${defaulter.resident.block ? '| Bloco ' + defaulter.resident.block : ''}`, 30, 67)
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(11)
+            doc.text(`Unidade: ${defaulter.resident.unit_number || '-'} ${defaulter.resident.block ? '| Bloco ' + defaulter.resident.block : ''}`, 30, 67)
 
-        doc.setFontSize(10)
-        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 180, 53, { align: 'right' })
+            doc.setFontSize(10)
+            doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 180, 53, { align: 'right' })
 
-        // --- CORPO DO TEXTO ---
-        doc.setFontSize(11)
-        doc.setTextColor(...TEXT_COLOR)
-        const introText = `Prezado(a) Senhor(a),
+            // --- CORPO DO TEXTO ---
+            doc.setFontSize(11)
+            doc.setTextColor(...TEXT_COLOR)
+            const introText = `Prezado(a) Senhor(a),
 
-Servimo-nos da presente para informar que, até o presente momento, não identificamos em nossos registros o pagamento das cotas condominiais abaixo relacionadas, referentes à unidade de sua responsabilidade.
+    Servimo-nos da presente para informar que, até o presente momento, não identificamos em nossos registros o pagamento das cotas condominiais abaixo relacionadas, referentes à unidade de sua responsabilidade.
 
-O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os demais condôminos. Desta forma, solicitamos sua atenção para os débitos listados a seguir:`
+    O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os demais condôminos. Desta forma, solicitamos sua atenção para os débitos listados a seguir:`
 
-        const splitText = doc.splitTextToSize(introText, 165)
-        doc.text(splitText, 25, 90)
+            const splitText = doc.splitTextToSize(introText, 165)
+            doc.text(splitText, 25, 90)
 
-        // --- TABELA DE DÉBITOS (AutoTable) ---
-        const tableData = defaulter.bills.map(bill => [
-            formatDate(bill.due_date),
-            bill.description,
-            formatCurrency(bill.original),
-            formatCurrency(bill.fine + bill.interest),
-            formatCurrency(bill.total)
-        ])
+            // --- TABELA DE DÉBITOS (AutoTable) ---
+            const tableData = defaulter.bills.map(bill => [
+                formatDate(bill.due_date),
+                bill.description || 'Taxa Condominial',
+                formatCurrency(bill.original),
+                formatCurrency(bill.fine + bill.interest),
+                formatCurrency(bill.total)
+            ])
 
-        doc.autoTable({
-            startY: 125,
-            head: [['Vencimento', 'Descrição', 'Valor Original', 'Multa/Juros', 'Total']],
-            body: tableData,
-            theme: 'grid',
-            headStyles: {
-                fillColor: PRIMARY_COLOR,
-                textColor: 255,
-                fontStyle: 'bold',
-                halign: 'center'
-            },
-            columnStyles: {
-                0: { halign: 'center' },
-                2: { halign: 'right' },
-                3: { halign: 'right' },
-                4: { halign: 'right', fontStyle: 'bold' }
-            },
-            styles: {
-                fontSize: 10,
-                cellPadding: 3,
-                textColor: TEXT_COLOR
-            },
-            margin: { left: 25, right: 15 }
-        })
+            doc.autoTable({
+                startY: 125,
+                head: [['Vencimento', 'Descrição', 'Valor Original', 'Multa/Juros', 'Total']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: PRIMARY_COLOR,
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                columnStyles: {
+                    0: { halign: 'center' },
+                    2: { halign: 'right' },
+                    3: { halign: 'right' },
+                    4: { halign: 'right', fontStyle: 'bold' }
+                },
+                styles: {
+                    fontSize: 10,
+                    cellPadding: 3,
+                    textColor: TEXT_COLOR
+                },
+                margin: { left: 25, right: 15 }
+            })
 
-        // --- TOTALIZADOR (FINAL DA TABELA) ---
-        const finalY = doc.lastAutoTable.finalY + 10
+            // --- TOTALIZADOR (FINAL DA TABELA) ---
+            const finalY = doc.lastAutoTable.finalY + 10
 
-        // Box de Total
-        doc.setFillColor(...BG_LIGHT)
-        doc.rect(120, finalY, 70, 15, 'F')
-        doc.setDrawColor(...PRIMARY_COLOR)
-        doc.rect(120, finalY, 70, 15, 'S')
+            // Box de Total
+            doc.setFillColor(...BG_LIGHT)
+            doc.rect(120, finalY, 70, 15, 'F')
+            doc.setDrawColor(...PRIMARY_COLOR)
+            doc.rect(120, finalY, 70, 15, 'S')
 
-        doc.setFontSize(10)
-        doc.text('TOTAL DEVIDO:', 125, finalY + 10)
-        doc.setFontSize(14)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(...SECONDARY_COLOR)
-        doc.text(formatCurrency(defaulter.totalDebt), 185, finalY + 10, { align: 'right' })
+            doc.setFontSize(10)
+            doc.text('TOTAL DEVIDO:', 125, finalY + 10)
+            doc.setFontSize(14)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(...SECONDARY_COLOR)
+            doc.text(formatCurrency(defaulter.totalDebt), 185, finalY + 10, { align: 'right' })
 
-        // --- CONCLUSÃO E JURÍDICO ---
-        doc.setTextColor(...TEXT_COLOR)
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(10)
+            // --- CONCLUSÃO E JURÍDICO ---
+            doc.setTextColor(...TEXT_COLOR)
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(10)
 
-        const conclusionText = `O valor acima já inclui multa de 2% e juros de mora de 1% ao mês pro rata die, conforme Art. 1336 do Código Civil e Convenção Condominial.
+            const conclusionText = `O valor acima já inclui multa de 2% e juros de mora de 1% ao mês pro rata die, conforme Art. 1336 do Código Civil e Convenção Condominial.
 
-Solicitamos a regularização desta pendência no prazo improrrogável de 48 horas.
-O não pagamento poderá acarretar no envio do título para Protesto em Cartório e posterior Ação Judicial de Cobrança, o que elevará os custos com honorários advocatícios e custas processuais.
+    Solicitamos a regularização desta pendência no prazo improrrogável de 48 horas.
+    O não pagamento poderá acarretar no envio do título para Protesto em Cartório e posterior Ação Judicial de Cobrança, o que elevará os custos com honorários advocatícios e custas processuais.
 
-Caso o pagamento já tenha sido efetuado, por favor, desconsidere este aviso e envie o comprovante para a administração.`
+    Caso o pagamento já tenha sido efetuado, por favor, desconsidere este aviso e envie o comprovante para a administração.`
 
-        const splitConclusion = doc.splitTextToSize(conclusionText, 165)
-        doc.text(splitConclusion, 25, finalY + 35)
+            const splitConclusion = doc.splitTextToSize(conclusionText, 165)
+            doc.text(splitConclusion, 25, finalY + 35)
 
-        // --- ASSINATURA ---
-        const assinaturaY = finalY + 80
-        doc.setDrawColor(150)
-        doc.line(70, assinaturaY, 140, assinaturaY)
+            // --- ASSINATURA ---
+            const assinaturaY = finalY + 80
+            doc.setDrawColor(150)
+            doc.line(70, assinaturaY, 140, assinaturaY)
 
-        doc.setFontSize(11)
-        doc.setFont('helvetica', 'bold')
-        doc.text('ADMINISTRAÇÃO', 105, assinaturaY + 5, { align: 'center' })
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        doc.text('Departamento Financeiro & Jurídico', 105, assinaturaY + 10, { align: 'center' })
+            doc.setFontSize(11)
+            doc.setFont('helvetica', 'bold')
+            doc.text('ADMINISTRAÇÃO', 105, assinaturaY + 5, { align: 'center' })
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'normal')
+            doc.text('Departamento Financeiro & Jurídico', 105, assinaturaY + 10, { align: 'center' })
 
-        // Salvar Arquivo
-        doc.save(`Notificacao_${defaulter.resident.name.replace(/\s+/g, '_')}.pdf`)
+            // Salvar Arquivo
+            const fileName = `Notificacao_${(defaulter.resident.name || 'condomino').replace(/\s+/g, '_')}.pdf`
+            doc.save(fileName)
+
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error)
+            alert('Erro ao gerar a carta PDF. Verifique o console para mais detalhes.\n\nErro: ' + error.message)
+        }
     }
 
     const fetchData = async () => {
