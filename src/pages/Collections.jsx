@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { jsPDF } from 'jspdf'
+import 'jspdf-autotable'
 
 export default function Collections() {
     // State for Defaulters Monitor
@@ -100,79 +101,157 @@ export default function Collections() {
         }
     }
 
-    // Função para Gerar Carta de Cobrança PDF
+    // Função para Gerar Carta de Cobrança PDF (VERSÃO PROFISSIONAL)
     const generateCollectionLetter = (defaulter) => {
+        console.log('Generating Professional Letter for:', defaulter.resident.name)
         const doc = new jsPDF()
 
-        // Header
-        doc.setFontSize(18)
-        doc.text('NOTIFICAÇÃO EXTRAJUDICIAL DE COBRANÇA', 105, 20, { align: 'center' })
+        // --- PALETA DE CORES ---
+        const PRIMARY_COLOR = [30, 58, 138] // Azul Escuro (Navy)
+        const SECONDARY_COLOR = [220, 38, 38] // Vermelho (Destaque)
+        const TEXT_COLOR = [51, 65, 85] // Cinza Escuro
+        const BG_LIGHT = [241, 245, 249] // Cinza Claro
 
-        doc.setFontSize(12)
-        doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 20, 40)
+        // --- CABEÇALHO ---
+        // Barra lateral colorida
+        doc.setFillColor(...PRIMARY_COLOR)
+        doc.rect(0, 0, 15, 297, 'F') // Lateral esquerda inteira
 
-        // Destinatário
+        // Título do Documento
+        doc.setTextColor(...PRIMARY_COLOR)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(22)
+        doc.text('NOTIFICAÇÃO EXTRAJUDICIAL', 25, 25)
+
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(100)
+        doc.text('DE COBRANÇA E CONSTITUIÇÃO EM MORA', 25, 30)
+
+        // Logo / Nome do Condomínio (Simulado)
+        doc.setFontSize(14)
+        doc.setTextColor(0)
+        doc.setFont('helvetica', 'bold')
+        doc.text('CondoManager System', 190, 25, { align: 'right' })
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Administração Financeira e Jurídica', 190, 30, { align: 'right' })
+
+        // Linha Divisória
+        doc.setDrawColor(...PRIMARY_COLOR)
+        doc.setLineWidth(0.5)
+        doc.line(25, 35, 190, 35)
+
+        // --- DESTINATÁRIO (BOX) ---
+        doc.setFillColor(...BG_LIGHT)
+        doc.roundedRect(25, 45, 165, 30, 2, 2, 'F')
+
+        doc.setFontSize(10)
+        doc.setTextColor(...TEXT_COLOR)
+        doc.text('DESTINATÁRIO:', 30, 53)
+
         doc.setFontSize(12)
         doc.setFont('helvetica', 'bold')
-        doc.text(`Ao Sr(a). ${defaulter.resident.name}`, 20, 55)
-        doc.setFont('helvetica', 'normal')
-        doc.text(`Unidade: ${defaulter.resident.unit_number} ${defaulter.resident.block ? '- Bloco ' + defaulter.resident.block : ''}`, 20, 62)
+        doc.setTextColor(0)
+        doc.text(defaulter.resident.name, 30, 60)
 
-        // Corpo do texto
+        doc.setFont('helvetica', 'normal')
         doc.setFontSize(11)
-        const text = `
-        Prezado(a) Condômino(a),
+        doc.text(`Unidade: ${defaulter.resident.unit_number} ${defaulter.resident.block ? '| Bloco ' + defaulter.resident.block : ''}`, 30, 67)
 
-        Consta em nossos registros que, até a presente data, não identificamos o pagamento das cotas condominiais referentes à sua unidade, conforme detalhado abaixo:
-        `
-        doc.text(text, 20, 75)
+        doc.setFontSize(10)
+        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 180, 53, { align: 'right' })
 
-        // Tabela de Débitos
-        let yPos = 110
-        doc.setFont('helvetica', 'bold')
-        doc.text('Vencimento', 25, yPos)
-        doc.text('Valor Original', 70, yPos)
-        doc.text('Multa/Juros', 120, yPos)
-        doc.text('Total', 170, yPos)
-        doc.line(20, yPos + 2, 190, yPos + 2) // Linha horizontal
+        // --- CORPO DO TEXTO ---
+        doc.setFontSize(11)
+        doc.setTextColor(...TEXT_COLOR)
+        const introText = `Prezado(a) Senhor(a),
 
-        yPos += 10
-        doc.setFont('helvetica', 'normal')
+Servimo-nos da presente para informar que, até o presente momento, não identificamos em nossos registros o pagamento das cotas condominiais abaixo relacionadas, referentes à unidade de sua responsabilidade.
 
-        defaulter.bills.forEach(bill => {
-            const multaJuros = bill.fine + bill.interest
-            doc.text(formatDate(bill.due_date), 25, yPos)
-            doc.text(formatCurrency(bill.original), 70, yPos)
-            doc.text(formatCurrency(multaJuros), 120, yPos)
-            doc.text(formatCurrency(bill.total), 170, yPos)
-            yPos += 8
+O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os demais condôminos. Desta forma, solicitamos sua atenção para os débitos listados a seguir:`
+
+        const splitText = doc.splitTextToSize(introText, 165)
+        doc.text(splitText, 25, 90)
+
+        // --- TABELA DE DÉBITOS (AutoTable) ---
+        const tableData = defaulter.bills.map(bill => [
+            formatDate(bill.due_date),
+            bill.description,
+            formatCurrency(bill.original),
+            formatCurrency(bill.fine + bill.interest),
+            formatCurrency(bill.total)
+        ])
+
+        doc.autoTable({
+            startY: 125,
+            head: [['Vencimento', 'Descrição', 'Valor Original', 'Multa/Juros', 'Total']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: {
+                fillColor: PRIMARY_COLOR,
+                textColor: 255,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            columnStyles: {
+                0: { halign: 'center' },
+                2: { halign: 'right' },
+                3: { halign: 'right' },
+                4: { halign: 'right', fontStyle: 'bold' }
+            },
+            styles: {
+                fontSize: 10,
+                cellPadding: 3,
+                textColor: TEXT_COLOR
+            },
+            margin: { left: 25, right: 15 }
         })
 
-        doc.line(20, yPos, 190, yPos)
-        yPos += 10
+        // --- TOTALIZADOR (FINAL DA TABELA) ---
+        const finalY = doc.lastAutoTable.finalY + 10
 
-        // Total Geral
+        // Box de Total
+        doc.setFillColor(...BG_LIGHT)
+        doc.rect(120, finalY, 70, 15, 'F')
+        doc.setDrawColor(...PRIMARY_COLOR)
+        doc.rect(120, finalY, 70, 15, 'S')
+
+        doc.setFontSize(10)
+        doc.text('TOTAL DEVIDO:', 125, finalY + 10)
+        doc.setFontSize(14)
         doc.setFont('helvetica', 'bold')
-        doc.setFontSize(12)
-        doc.text(`TOTAL ATUALIZADO: ${formatCurrency(defaulter.totalDebt)}`, 190, yPos, { align: 'right' })
+        doc.setTextColor(...SECONDARY_COLOR)
+        doc.text(formatCurrency(defaulter.totalDebt), 185, finalY + 10, { align: 'right' })
 
-        // Encerramento
-        yPos += 20
+        // --- CONCLUSÃO E JURÍDICO ---
+        doc.setTextColor(...TEXT_COLOR)
         doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+
+        const conclusionText = `O valor acima já inclui multa de 2% e juros de mora de 1% ao mês pro rata die, conforme Art. 1336 do Código Civil e Convenção Condominial.
+
+Solicitamos a regularização desta pendência no prazo improrrogável de 48 horas.
+O não pagamento poderá acarretar no envio do título para Protesto em Cartório e posterior Ação Judicial de Cobrança, o que elevará os custos com honorários advocatícios e custas processuais.
+
+Caso o pagamento já tenha sido efetuado, por favor, desconsidere este aviso e envie o comprovante para a administração.`
+
+        const splitConclusion = doc.splitTextToSize(conclusionText, 165)
+        doc.text(splitConclusion, 25, finalY + 35)
+
+        // --- ASSINATURA ---
+        const assinaturaY = finalY + 80
+        doc.setDrawColor(150)
+        doc.line(70, assinaturaY, 140, assinaturaY)
+
         doc.setFontSize(11)
-        const closingText = `
-        Solicitamos a regularização das pendências acima no prazo de 48 horas, a fim de evitar medidas judiciais cabíveis e o protesto do título, conforme previsto na Convenção do Condomínio e no Art. 1336 do Código Civil.
+        doc.setFont('helvetica', 'bold')
+        doc.text('ADMINISTRAÇÃO', 105, assinaturaY + 5, { align: 'center' })
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Departamento Financeiro & Jurídico', 105, assinaturaY + 10, { align: 'center' })
 
-        Caso o pagamento já tenha sido efetuado, pedimos que desconsidere esta notificação e nos envie o comprovante para baixa.
-        
-        Atenciosamente,
-
-        __________________________
-        Administração do Condomínio
-        `
-        doc.text(closingText, 20, yPos)
-
-        // Save
+        // Salvar Arquivo
         doc.save(`Notificacao_${defaulter.resident.name.replace(/\s+/g, '_')}.pdf`)
     }
 
