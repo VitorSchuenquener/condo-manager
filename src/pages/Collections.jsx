@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { jsPDF } from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 
 export default function Collections() {
     // State for Defaulters Monitor
@@ -168,9 +168,9 @@ export default function Collections() {
             doc.setTextColor(...TEXT_COLOR)
             const introText = `Prezado(a) Senhor(a),
 
-    Servimo-nos da presente para informar que, até o presente momento, não identificamos em nossos registros o pagamento das cotas condominiais abaixo relacionadas, referentes à unidade de sua responsabilidade.
+Servimo-nos da presente para informar que, até o presente momento, não identificamos em nossos registros o pagamento das cotas condominiais abaixo relacionadas, referentes à unidade de sua responsabilidade.
 
-    O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os demais condôminos. Desta forma, solicitamos sua atenção para os débitos listados a seguir:`
+O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os demais condôminos. Desta forma, solicitamos sua atenção para os débitos listados a seguir:`
 
             const splitText = doc.splitTextToSize(introText, 165)
             doc.text(splitText, 25, 90)
@@ -184,7 +184,7 @@ export default function Collections() {
                 formatCurrency(bill.total)
             ])
 
-            doc.autoTable({
+            autoTable(doc, {
                 startY: 125,
                 head: [['Vencimento', 'Descrição', 'Valor Original', 'Multa/Juros', 'Total']],
                 body: tableData,
