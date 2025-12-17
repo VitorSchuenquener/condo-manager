@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+// VERSION: 2024-12-17-11:31 - Premium Contact Modal Active
+
 export default function Collections() {
     // State for Defaulters Monitor
     const [defaulters, setDefaulters] = useState([])
