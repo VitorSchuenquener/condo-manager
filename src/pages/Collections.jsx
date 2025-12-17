@@ -919,51 +919,198 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
                 </div>
             )}
 
-            {/* Modal Create Process */}
+            {/* Modal Create Process PREMIUM */}
             {showProcessModal && (
                 <div className="modal-overlay">
-                    <div className="modal">
-                        <div className="modal-header">
-                            <h2 className="modal-title">Iniciar Processo de Cobrança</h2>
-                            <button className="modal-close" onClick={() => setShowProcessModal(false)}>&times;</button>
+                    <div className="modal" style={{ maxWidth: '650px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}>
+
+                        {/* Header com Gradiente */}
+                        <div style={{
+                            background: 'linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)',
+                            padding: '32px 40px',
+                            color: 'white',
+                            position: 'relative'
+                        }}>
+                            <button
+                                onClick={() => setShowProcessModal(false)}
+                                style={{
+                                    position: 'absolute',
+                                    top: '16px',
+                                    right: '16px',
+                                    background: 'rgba(255,255,255,0.2)',
+                                    border: 'none',
+                                    color: 'white',
+                                    fontSize: '24px',
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                ×
+                            </button>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <div style={{
+                                    background: 'rgba(255,255,255,0.2)',
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '28px'
+                                }}>
+                                    ⚖️
+                                </div>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700' }}>Confirmar Protesto</h2>
+                                    <p style={{ margin: '4px 0 0', fontSize: '14px', opacity: 0.9 }}>Abertura de Processo de Cobrança Judicial</p>
+                                </div>
+                            </div>
                         </div>
-                        <div className="p-md">
-                            <p className="mb-md">
-                                Confirmar abertura de processo para <strong>{selectedDefaulter?.resident.name}</strong>?
-                            </p>
-                            <div className="bg-gray-light p-md rounded mb-md text-sm">
-                                <div className="flex justify-between mb-xs">
-                                    <span>Principal:</span>
-                                    <strong>{formatCurrency(selectedDefaulter?.totalOriginal)}</strong>
+
+                        <div style={{ padding: '32px 40px' }}>
+                            {/* Resumo do Devedor */}
+                            <div style={{
+                                background: '#fef2f2',
+                                border: '2px solid #fecaca',
+                                borderRadius: '12px',
+                                padding: '20px',
+                                marginBottom: '24px'
+                            }}>
+                                <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+                                    Confirmar abertura de processo para:
                                 </div>
-                                <div className="flex justify-between mb-xs text-danger">
-                                    <span>Multa (2%):</span>
-                                    <strong>{formatCurrency(selectedDefaulter?.totalFine)}</strong>
-                                </div>
-                                <div className="flex justify-between mb-xs text-danger">
-                                    <span>Juros (1% a.m):</span>
-                                    <strong>{formatCurrency(selectedDefaulter?.totalInterest)}</strong>
-                                </div>
-                                <div className="flex justify-between pt-xs border-t border-gray font-bold text-lg mt-sm">
-                                    <span>Total a Protestar:</span>
-                                    <span className="text-danger">{formatCurrency(selectedDefaulter?.totalDebt)}</span>
+                                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                                    {selectedDefaulter?.resident.name}
+                                </h3>
+                                <div style={{ fontSize: '14px', color: '#64748b' }}>
+                                    📍 Unidade {selectedDefaulter?.resident.unit_number}
                                 </div>
                             </div>
 
-                            <div className="input-group">
-                                <label className="input-label">Observações Iniciais</label>
+                            {/* Breakdown Financeiro */}
+                            <div style={{
+                                background: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '12px',
+                                padding: '20px',
+                                marginBottom: '24px'
+                            }}>
+                                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Composição do Débito
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '14px' }}>
+                                    <span style={{ color: '#64748b' }}>Valor Principal:</span>
+                                    <strong style={{ color: '#1e293b' }}>{formatCurrency(selectedDefaulter?.totalOriginal)}</strong>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '14px' }}>
+                                    <span style={{ color: '#dc2626' }}>+ Multa (2%):</span>
+                                    <strong style={{ color: '#dc2626' }}>{formatCurrency(selectedDefaulter?.totalFine)}</strong>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '14px', paddingBottom: '16px', borderBottom: '2px dashed #e2e8f0' }}>
+                                    <span style={{ color: '#dc2626' }}>+ Juros de Mora (1% a.m):</span>
+                                    <strong style={{ color: '#dc2626' }}>{formatCurrency(selectedDefaulter?.totalInterest)}</strong>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', borderRadius: '8px' }}>
+                                    <span style={{ fontSize: '16px', fontWeight: '700', color: '#7f1d1d' }}>TOTAL A PROTESTAR:</span>
+                                    <span style={{ fontSize: '24px', fontWeight: '800', color: '#dc2626' }}>{formatCurrency(selectedDefaulter?.totalDebt)}</span>
+                                </div>
+                            </div>
+
+                            {/* Campo de Observações */}
+                            <div style={{ marginBottom: '24px' }}>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>
+                                    Observações Iniciais do Processo
+                                </label>
                                 <textarea
-                                    className="input"
-                                    rows="3"
+                                    style={{
+                                        width: '100%',
+                                        minHeight: '100px',
+                                        padding: '12px',
+                                        border: '2px solid #e2e8f0',
+                                        borderRadius: '8px',
+                                        fontSize: '14px',
+                                        fontFamily: 'inherit',
+                                        resize: 'vertical',
+                                        outline: 'none'
+                                    }}
                                     value={newProcessNote}
                                     onChange={e => setNewProcessNote(e.target.value)}
-                                    placeholder="Ex: Carta de notificação enviada..."
-                                ></textarea>
+                                    placeholder="Ex: Carta de notificação enviada em DD/MM/AAAA via AR nº XXXXX. Prazo de 10 dias úteis cumprido. Documentação completa anexada aos autos."
+                                />
+                                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
+                                    💡 Dica: Documente todas as tentativas de contato e prazos cumpridos
+                                </div>
                             </div>
 
-                            <div className="flex justify-end gap-sm mt-lg">
-                                <button className="btn btn-outline" onClick={() => setShowProcessModal(false)}>Cancelar</button>
-                                <button className="btn btn-primary" onClick={confirmCreateProcess}>Confirmar Abertura</button>
+                            {/* Aviso Legal */}
+                            <div style={{
+                                background: '#fffbeb',
+                                border: '1px solid #fde68a',
+                                borderLeft: '4px solid #f59e0b',
+                                borderRadius: '8px',
+                                padding: '16px',
+                                marginBottom: '24px',
+                                display: 'flex',
+                                gap: '12px'
+                            }}>
+                                <span style={{ fontSize: '20px' }}>⚠️</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#92400e', marginBottom: '6px' }}>
+                                        Atenção: Ação Irreversível
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '12px', color: '#78350f', lineHeight: '1.6' }}>
+                                        Ao confirmar, o processo será registrado oficialmente e o devedor será notificado.
+                                        O protesto em cartório resultará em restrição de crédito (Serasa/SPC).
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Botões de Ação */}
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setShowProcessModal(false)}
+                                    style={{
+                                        padding: '12px 24px',
+                                        border: '2px solid #e2e8f0',
+                                        background: 'white',
+                                        color: '#64748b',
+                                        borderRadius: '8px',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmCreateProcess}
+                                    style={{
+                                        padding: '12px 32px',
+                                        border: 'none',
+                                        background: 'linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)',
+                                        color: 'white',
+                                        borderRadius: '8px',
+                                        fontSize: '14px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    <span>⚖️</span>
+                                    <span>Confirmar Abertura do Processo</span>
+                                </button>
                             </div>
                         </div>
                     </div>
