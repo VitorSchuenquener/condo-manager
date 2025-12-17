@@ -602,82 +602,316 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
                 </div>
             </div>
 
-            {/* Modal de Checklist */}
+            {/* Modal de Checklist PREMIUM */}
             {showChecklistModal && (
                 <div className="modal-overlay">
-                    <div className="modal">
-                        <div className="modal-header">
-                            <h2 className="modal-title">⚖️ Checklist de Protesto</h2>
-                            <button className="modal-close" onClick={() => setShowChecklistModal(false)}>&times;</button>
-                        </div>
-                        <div className="p-md">
-                            <div className="bg-blue-50 border-l-4 border-primary p-md mb-md">
-                                <p className="text-sm">
-                                    <strong>Morador:</strong> {selectedDefaulter?.resident.name}<br />
-                                    <strong>Valor Total:</strong> {formatCurrency(selectedDefaulter?.totalDebt)}<br />
-                                    <strong>Dias de Atraso:</strong> {Math.max(...(selectedDefaulter?.bills.map(b => b.days) || [0]))} dias
-                                </p>
+                    <div className="modal" style={{ maxWidth: '700px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}>
+
+                        {/* Header com Gradiente */}
+                        <div style={{
+                            background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                            padding: '32px 40px',
+                            color: 'white',
+                            position: 'relative'
+                        }}>
+                            <button
+                                onClick={() => setShowChecklistModal(false)}
+                                style={{
+                                    position: 'absolute',
+                                    top: '16px',
+                                    right: '16px',
+                                    background: 'rgba(255,255,255,0.2)',
+                                    border: 'none',
+                                    color: 'white',
+                                    fontSize: '24px',
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                ×
+                            </button>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+                                <div style={{
+                                    background: 'rgba(255,255,255,0.2)',
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '28px'
+                                }}>
+                                    ⚖️
+                                </div>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700' }}>Checklist de Protesto</h2>
+                                    <p style={{ margin: '4px 0 0', fontSize: '14px', opacity: 0.9 }}>Verificação de Conformidade Legal</p>
+                                </div>
                             </div>
 
-                            <div className="space-y-sm mb-md">
-                                <label className="flex items-start gap-sm cursor-pointer">
+                            {/* Barra de Progresso */}
+                            <div style={{ marginTop: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px', opacity: 0.9 }}>
+                                    <span>Progresso do Checklist</span>
+                                    <span>{Object.values(checklist).filter(Boolean).length} de 4 itens</span>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.2)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{
+                                        background: 'white',
+                                        height: '100%',
+                                        width: `${(Object.values(checklist).filter(Boolean).length / 4) * 100}%`,
+                                        transition: 'width 0.3s ease',
+                                        borderRadius: '4px'
+                                    }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '32px 40px' }}>
+                            {/* Card de Resumo do Devedor */}
+                            <div style={{
+                                background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                                border: '2px solid #fecaca',
+                                borderRadius: '12px',
+                                padding: '20px',
+                                marginBottom: '32px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                                        Dados do Devedor
+                                    </div>
+                                    <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                                        {selectedDefaulter?.resident.name}
+                                    </h3>
+                                    <div style={{ display: 'flex', gap: '16px', fontSize: '14px', color: '#64748b' }}>
+                                        <span>📍 Unidade {selectedDefaulter?.resident.unit_number}</span>
+                                        <span>📅 {Math.max(...(selectedDefaulter?.bills.map(b => b.days) || [0]))} dias em atraso</span>
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Valor Total Atualizado</div>
+                                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#dc2626' }}>
+                                        {formatCurrency(selectedDefaulter?.totalDebt)}
+                                    </div>
+                                    <div style={{
+                                        display: 'inline-block',
+                                        marginTop: '8px',
+                                        padding: '4px 12px',
+                                        background: '#7f1d1d',
+                                        color: 'white',
+                                        fontSize: '11px',
+                                        fontWeight: 'bold',
+                                        borderRadius: '12px',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        🚨 Crítico
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Checklist Items Estilizados */}
+                            <div style={{ marginBottom: '32px' }}>
+                                <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Requisitos Legais Obrigatórios
+                                </h4>
+
+                                {/* Item 1 */}
+                                <label style={{
+                                    display: 'flex',
+                                    gap: '16px',
+                                    padding: '16px',
+                                    background: checklist.carta_enviada ? '#f0fdf4' : '#f8fafc',
+                                    border: `2px solid ${checklist.carta_enviada ? '#86efac' : '#e2e8f0'}`,
+                                    borderRadius: '12px',
+                                    marginBottom: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}>
                                     <input
                                         type="checkbox"
                                         checked={checklist.carta_enviada}
                                         onChange={(e) => setChecklist({ ...checklist, carta_enviada: e.target.checked })}
-                                        className="mt-1"
+                                        style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '2px' }}
                                     />
-                                    <div>
-                                        <div className="font-bold">📧 Carta de Cobrança (AR)</div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                            <span style={{ fontSize: '20px' }}>📧</span>
+                                            <span style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Carta de Cobrança com AR</span>
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
+                                            Notificação extrajudicial enviada via Correios com Aviso de Recebimento (AR) comprovando a ciência do devedor.
+                                        </p>
                                     </div>
                                 </label>
 
-                                <label className="flex items-start gap-sm cursor-pointer">
+                                {/* Item 2 */}
+                                <label style={{
+                                    display: 'flex',
+                                    gap: '16px',
+                                    padding: '16px',
+                                    background: checklist.prazo_cumprido ? '#f0fdf4' : '#f8fafc',
+                                    border: `2px solid ${checklist.prazo_cumprido ? '#86efac' : '#e2e8f0'}`,
+                                    borderRadius: '12px',
+                                    marginBottom: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}>
                                     <input
                                         type="checkbox"
                                         checked={checklist.prazo_cumprido}
                                         onChange={(e) => setChecklist({ ...checklist, prazo_cumprido: e.target.checked })}
-                                        className="mt-1"
+                                        style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '2px' }}
                                     />
-                                    <div>
-                                        <div className="font-bold">⏳ Prazo de 10 Dias Úteis</div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                            <span style={{ fontSize: '20px' }}>⏳</span>
+                                            <span style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Prazo de 10 Dias Úteis</span>
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
+                                            Aguardado o prazo legal de 10 dias úteis após o recebimento da notificação para pagamento voluntário.
+                                        </p>
                                     </div>
                                 </label>
 
-                                <label className="flex items-start gap-sm cursor-pointer">
+                                {/* Item 3 */}
+                                <label style={{
+                                    display: 'flex',
+                                    gap: '16px',
+                                    padding: '16px',
+                                    background: checklist.documentos_anexados ? '#f0fdf4' : '#f8fafc',
+                                    border: `2px solid ${checklist.documentos_anexados ? '#86efac' : '#e2e8f0'}`,
+                                    borderRadius: '12px',
+                                    marginBottom: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}>
                                     <input
                                         type="checkbox"
                                         checked={checklist.documentos_anexados}
                                         onChange={(e) => setChecklist({ ...checklist, documentos_anexados: e.target.checked })}
-                                        className="mt-1"
+                                        style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '2px' }}
                                     />
-                                    <div>
-                                        <div className="font-bold">📄 Documentação Completa</div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                            <span style={{ fontSize: '20px' }}>📄</span>
+                                            <span style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Documentação Completa</span>
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
+                                            Boletos originais, comprovantes de notificação (AR), convenção do condomínio e ata de assembleia anexados.
+                                        </p>
                                     </div>
                                 </label>
 
-                                <label className="flex items-start gap-sm opacity-50">
+                                {/* Item 4 - Auto */}
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '16px',
+                                    padding: '16px',
+                                    background: '#f0fdf4',
+                                    border: '2px solid #86efac',
+                                    borderRadius: '12px',
+                                    opacity: 0.7
+                                }}>
                                     <input
                                         type="checkbox"
                                         checked={checklist.valor_calculado}
                                         disabled
-                                        className="mt-1"
+                                        style={{ width: '20px', height: '20px', marginTop: '2px' }}
                                     />
-                                    <div>
-                                        <div className="font-bold">💰 Valor Atualizado</div>
-                                        <div className="text-xs text-gray">✅ Calculado automaticamente</div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                            <span style={{ fontSize: '20px' }}>💰</span>
+                                            <span style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Valor Atualizado</span>
+                                            <span style={{
+                                                fontSize: '10px',
+                                                padding: '2px 8px',
+                                                background: '#dcfce7',
+                                                color: '#166534',
+                                                borderRadius: '6px',
+                                                fontWeight: 'bold'
+                                            }}>
+                                                AUTOMÁTICO
+                                            </span>
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
+                                            Cálculo automático com multa de 2% e juros de mora de 1% a.m. conforme legislação vigente.
+                                        </p>
                                     </div>
-                                </label>
+                                </div>
                             </div>
 
-                            <div className="flex justify-end gap-sm">
-                                <button className="btn btn-outline" onClick={() => setShowChecklistModal(false)}>Cancelar</button>
+                            {/* Disclaimer Legal */}
+                            <div style={{
+                                background: '#fffbeb',
+                                border: '1px solid #fde68a',
+                                borderLeft: '4px solid #f59e0b',
+                                borderRadius: '8px',
+                                padding: '16px',
+                                marginBottom: '32px',
+                                display: 'flex',
+                                gap: '12px'
+                            }}>
+                                <span style={{ fontSize: '20px' }}>⚠️</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#92400e', marginBottom: '6px' }}>
+                                        Aviso Legal Importante
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '12px', color: '#78350f', lineHeight: '1.6' }}>
+                                        O protesto em cartório é um ato formal que inscreve o devedor em cadastros de inadimplentes (Serasa/SPC).
+                                        Certifique-se de que todos os requisitos legais foram cumpridos antes de prosseguir.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Botões */}
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                                 <button
-                                    className="btn btn-primary"
+                                    onClick={() => setShowChecklistModal(false)}
+                                    style={{
+                                        padding: '12px 24px',
+                                        border: '2px solid #e2e8f0',
+                                        background: 'white',
+                                        color: '#64748b',
+                                        borderRadius: '8px',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
                                     onClick={proceedToCreateProcess}
                                     disabled={!checklist.carta_enviada || !checklist.prazo_cumprido || !checklist.documentos_anexados}
+                                    style={{
+                                        padding: '12px 32px',
+                                        border: 'none',
+                                        background: (!checklist.carta_enviada || !checklist.prazo_cumprido || !checklist.documentos_anexados)
+                                            ? '#cbd5e1'
+                                            : 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                                        color: 'white',
+                                        borderRadius: '8px',
+                                        fontSize: '14px',
+                                        fontWeight: '700',
+                                        cursor: (!checklist.carta_enviada || !checklist.prazo_cumprido || !checklist.documentos_anexados)
+                                            ? 'not-allowed'
+                                            : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}
                                 >
-                                    Continuar
+                                    <span>Prosseguir com Protesto</span>
+                                    <span>→</span>
                                 </button>
                             </div>
                         </div>
