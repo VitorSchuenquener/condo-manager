@@ -13,8 +13,10 @@ export default function Collections() {
     const [loading, setLoading] = useState(true)
     const [showProcessModal, setShowProcessModal] = useState(false)
     const [showChecklistModal, setShowChecklistModal] = useState(false)
+    const [showContactModal, setShowContactModal] = useState(false)
     const [selectedDefaulter, setSelectedDefaulter] = useState(null)
     const [selectedProcess, setSelectedProcess] = useState(null)
+    const [selectedContact, setSelectedContact] = useState(null)
     const [newProcessNote, setNewProcessNote] = useState('')
 
     // Checklist de Protesto
@@ -516,7 +518,7 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
                                     </button>
                                     <button
                                         className="btn btn-sm btn-outline w-full"
-                                        onClick={() => window.alert(`Telefone: ${item.resident.phone}\nEmail: ${item.resident.email}`)}
+                                        onClick={() => { setSelectedContact(item.resident); setShowContactModal(true); }}
                                     >
                                         📞 Contato
                                     </button>
@@ -1111,6 +1113,254 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
                                     <span>⚖️</span>
                                     <span>Confirmar Abertura do Processo</span>
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Contato Premium */}
+            {showContactModal && selectedContact && (
+                <div className="modal-overlay">
+                    <div className="modal" style={{ maxWidth: '500px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}>
+
+                        {/* Header */}
+                        <div style={{
+                            background: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)',
+                            padding: '32px 40px',
+                            color: 'white',
+                            position: 'relative'
+                        }}>
+                            <button
+                                onClick={() => setShowContactModal(false)}
+                                style={{
+                                    position: 'absolute',
+                                    top: '16px',
+                                    right: '16px',
+                                    background: 'rgba(255,255,255,0.2)',
+                                    border: 'none',
+                                    color: 'white',
+                                    fontSize: '24px',
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                ×
+                            </button>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <div style={{
+                                    background: 'rgba(255,255,255,0.2)',
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '28px'
+                                }}>
+                                    📞
+                                </div>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700' }}>Informações de Contato</h2>
+                                    <p style={{ margin: '4px 0 0', fontSize: '14px', opacity: 0.9 }}>Canais de comunicação com o morador</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '32px 40px' }}>
+                            {/* Card do Morador */}
+                            <div style={{
+                                background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)',
+                                border: '2px solid #99f6e4',
+                                borderRadius: '12px',
+                                padding: '20px',
+                                marginBottom: '24px',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    background: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '36px',
+                                    color: 'white',
+                                    margin: '0 auto 16px',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {selectedContact.name?.charAt(0).toUpperCase()}
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                                    {selectedContact.name}
+                                </h3>
+                                <div style={{ fontSize: '14px', color: '#64748b' }}>
+                                    📍 Unidade {selectedContact.unit_number} {selectedContact.block && `• Bloco ${selectedContact.block}`}
+                                </div>
+                            </div>
+
+                            {/* Botões de Ação Rápida */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                                {/* Telefone */}
+                                {selectedContact.phone && (
+                                    <a
+                                        href={`tel:${selectedContact.phone}`}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '16px',
+                                            padding: '16px 20px',
+                                            background: 'white',
+                                            border: '2px solid #e2e8f0',
+                                            borderRadius: '12px',
+                                            textDecoration: 'none',
+                                            transition: 'all 0.2s',
+                                            cursor: 'pointer'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.borderColor = '#14b8a6'
+                                            e.currentTarget.style.background = '#f0fdfa'
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.borderColor = '#e2e8f0'
+                                            e.currentTarget.style.background = 'white'
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '48px',
+                                            height: '48px',
+                                            background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',
+                                            borderRadius: '12px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '24px'
+                                        }}>
+                                            📱
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Telefone</div>
+                                            <div style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>{selectedContact.phone}</div>
+                                        </div>
+                                        <div style={{ fontSize: '20px', color: '#94a3b8' }}>→</div>
+                                    </a>
+                                )}
+
+                                {/* WhatsApp */}
+                                {selectedContact.phone && (
+                                    <a
+                                        href={`https://wa.me/55${selectedContact.phone.replace(/\D/g, '')}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '16px',
+                                            padding: '16px 20px',
+                                            background: 'white',
+                                            border: '2px solid #e2e8f0',
+                                            borderRadius: '12px',
+                                            textDecoration: 'none',
+                                            transition: 'all 0.2s',
+                                            cursor: 'pointer'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.borderColor = '#25D366'
+                                            e.currentTarget.style.background = '#f0fdf4'
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.borderColor = '#e2e8f0'
+                                            e.currentTarget.style.background = 'white'
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '48px',
+                                            height: '48px',
+                                            background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                            borderRadius: '12px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '24px'
+                                        }}>
+                                            💬
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>WhatsApp</div>
+                                            <div style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Enviar mensagem</div>
+                                        </div>
+                                        <div style={{ fontSize: '20px', color: '#94a3b8' }}>→</div>
+                                    </a>
+                                )}
+
+                                {/* Email */}
+                                {selectedContact.email && (
+                                    <a
+                                        href={`mailto:${selectedContact.email}`}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '16px',
+                                            padding: '16px 20px',
+                                            background: 'white',
+                                            border: '2px solid #e2e8f0',
+                                            borderRadius: '12px',
+                                            textDecoration: 'none',
+                                            transition: 'all 0.2s',
+                                            cursor: 'pointer'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.borderColor = '#f59e0b'
+                                            e.currentTarget.style.background = '#fffbeb'
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.borderColor = '#e2e8f0'
+                                            e.currentTarget.style.background = 'white'
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '48px',
+                                            height: '48px',
+                                            background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
+                                            borderRadius: '12px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '24px'
+                                        }}>
+                                            📧
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Email</div>
+                                            <div style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedContact.email}</div>
+                                        </div>
+                                        <div style={{ fontSize: '20px', color: '#94a3b8' }}>→</div>
+                                    </a>
+                                )}
+                            </div>
+
+                            {/* Dica */}
+                            <div style={{
+                                background: '#eff6ff',
+                                border: '1px solid #dbeafe',
+                                borderLeft: '4px solid #3b82f6',
+                                borderRadius: '8px',
+                                padding: '12px 16px',
+                                display: 'flex',
+                                gap: '12px',
+                                alignItems: 'flex-start'
+                            }}>
+                                <span style={{ fontSize: '18px' }}>💡</span>
+                                <p style={{ margin: 0, fontSize: '12px', color: '#1e40af', lineHeight: '1.5' }}>
+                                    <strong>Dica:</strong> Documente todas as tentativas de contato para fortalecer o processo de cobrança.
+                                </p>
                             </div>
                         </div>
                     </div>
