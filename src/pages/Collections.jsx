@@ -518,7 +518,11 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
                                     </button>
                                     <button
                                         className="btn btn-sm btn-outline w-full"
-                                        onClick={() => { setSelectedContact(item.resident); setShowContactModal(true); }}
+                                        onClick={() => {
+                                            console.log('Contact clicked:', item.resident);
+                                            setSelectedContact(item.resident);
+                                            setShowContactModal(true);
+                                        }}
                                     >
                                         📞 Contato
                                     </button>
@@ -1121,8 +1125,8 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
 
             {/* Modal de Contato Premium */}
             {showContactModal && selectedContact && (
-                <div className="modal-overlay">
-                    <div className="modal" style={{ maxWidth: '500px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}>
+                <div className="modal-overlay" onClick={() => console.log('Modal overlay clicked')}>
+                    <div className="modal" style={{ maxWidth: '500px', borderRadius: '16px', overflow: 'hidden', padding: 0 }} onClick={(e) => e.stopPropagation()}>
 
                         {/* Header */}
                         <div style={{
