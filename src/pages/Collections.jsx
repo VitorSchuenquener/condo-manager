@@ -121,22 +121,22 @@ export default function Collections() {
             // Título do Documento
             doc.setTextColor(...PRIMARY_COLOR)
             doc.setFont('helvetica', 'bold')
-            doc.setFontSize(22)
+            doc.setFontSize(16) // Reduzido para evitar sobreposição
             doc.text('NOTIFICAÇÃO EXTRAJUDICIAL', 25, 25)
 
-            doc.setFontSize(10)
+            doc.setFontSize(8)
             doc.setFont('helvetica', 'normal')
             doc.setTextColor(100)
             doc.text('DE COBRANÇA E CONSTITUIÇÃO EM MORA', 25, 30)
 
             // Logo / Nome do Condomínio (Simulado)
-            doc.setFontSize(14)
+            doc.setFontSize(10)
             doc.setTextColor(0)
             doc.setFont('helvetica', 'bold')
             doc.text('CondoManager System', 190, 25, { align: 'right' })
-            doc.setFontSize(9)
+            doc.setFontSize(8)
             doc.setFont('helvetica', 'normal')
-            doc.text('Administração Financeira e Jurídica', 190, 30, { align: 'right' })
+            doc.text('Administração Financeira e Jurídica', 190, 29, { align: 'right' })
 
             // Linha Divisória
             doc.setDrawColor(...PRIMARY_COLOR)
