@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { jsPDF } from 'jspdf'
 
 export default function Collections() {
     // State for Defaulters Monitor
@@ -97,6 +98,82 @@ export default function Collections() {
             days: daysLate,
             total: total
         }
+    }
+
+    // Função para Gerar Carta de Cobrança PDF
+    const generateCollectionLetter = (defaulter) => {
+        const doc = new jsPDF()
+
+        // Header
+        doc.setFontSize(18)
+        doc.text('NOTIFICAÇÃO EXTRAJUDICIAL DE COBRANÇA', 105, 20, { align: 'center' })
+
+        doc.setFontSize(12)
+        doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 20, 40)
+
+        // Destinatário
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Ao Sr(a). ${defaulter.resident.name}`, 20, 55)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Unidade: ${defaulter.resident.unit_number} ${defaulter.resident.block ? '- Bloco ' + defaulter.resident.block : ''}`, 20, 62)
+
+        // Corpo do texto
+        doc.setFontSize(11)
+        const text = `
+        Prezado(a) Condômino(a),
+
+        Consta em nossos registros que, até a presente data, não identificamos o pagamento das cotas condominiais referentes à sua unidade, conforme detalhado abaixo:
+        `
+        doc.text(text, 20, 75)
+
+        // Tabela de Débitos
+        let yPos = 110
+        doc.setFont('helvetica', 'bold')
+        doc.text('Vencimento', 25, yPos)
+        doc.text('Valor Original', 70, yPos)
+        doc.text('Multa/Juros', 120, yPos)
+        doc.text('Total', 170, yPos)
+        doc.line(20, yPos + 2, 190, yPos + 2) // Linha horizontal
+
+        yPos += 10
+        doc.setFont('helvetica', 'normal')
+
+        defaulter.bills.forEach(bill => {
+            const multaJuros = bill.fine + bill.interest
+            doc.text(formatDate(bill.due_date), 25, yPos)
+            doc.text(formatCurrency(bill.original), 70, yPos)
+            doc.text(formatCurrency(multaJuros), 120, yPos)
+            doc.text(formatCurrency(bill.total), 170, yPos)
+            yPos += 8
+        })
+
+        doc.line(20, yPos, 190, yPos)
+        yPos += 10
+
+        // Total Geral
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(12)
+        doc.text(`TOTAL ATUALIZADO: ${formatCurrency(defaulter.totalDebt)}`, 190, yPos, { align: 'right' })
+
+        // Encerramento
+        yPos += 20
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(11)
+        const closingText = `
+        Solicitamos a regularização das pendências acima no prazo de 48 horas, a fim de evitar medidas judiciais cabíveis e o protesto do título, conforme previsto na Convenção do Condomínio e no Art. 1336 do Código Civil.
+
+        Caso o pagamento já tenha sido efetuado, pedimos que desconsidere esta notificação e nos envie o comprovante para baixa.
+        
+        Atenciosamente,
+
+        __________________________
+        Administração do Condomínio
+        `
+        doc.text(closingText, 20, yPos)
+
+        // Save
+        doc.save(`Notificacao_${defaulter.resident.name.replace(/\s+/g, '_')}.pdf`)
     }
 
     const fetchData = async () => {
@@ -344,6 +421,13 @@ export default function Collections() {
                                 </div>
 
                                 <div className="flex gap-sm">
+                                    <button
+                                        className="btn btn-sm btn-outline w-full"
+                                        onClick={() => generateCollectionLetter(item)}
+                                        title="Baixar Carta PDF"
+                                    >
+                                        📄 Carta
+                                    </button>
                                     <button
                                         className="btn btn-sm btn-outline w-full"
                                         onClick={() => window.alert(`Telefone: ${item.resident.phone}\nEmail: ${item.resident.email}`)}

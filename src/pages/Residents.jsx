@@ -139,7 +139,8 @@ export default function Residents() {
             // Se fez upload de novo arquivo, adiciona à lista
             if (uploadedFile) {
                 const newDocUrl = await uploadDocument(uploadedFile)
-                currentDocs = [{ name: uploadedFile.name, url: newDocUrl, type: 'doc' }] // Substituindo para simplificar (1 doc por vez)
+                // Adiciona o novo documento mantendo os anteriores
+                currentDocs = [...currentDocs, { name: uploadedFile.name, url: newDocUrl, type: 'doc' }]
             }
 
             const payload = {
@@ -356,29 +357,64 @@ export default function Residents() {
                                 </div>
                             </div>
 
-                            {/* Dropzone */}
-                            <div className="input-group mt-md">
-                                <label className="input-label">Documento do Morador</label>
-                                <div {...getRootProps()} className={`border-2 border-dashed rounded p-lg text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary-light' : 'border-gray-300 hover:border-primary'}`} style={{ background: isDragActive ? '#f0f9ff' : '#fafafa' }}>
-                                    <input {...getInputProps()} />
-                                    {uploadedFile ? (
-                                        <div className="text-success font-medium">📄 {uploadedFile.name} (Pronto para enviar)</div>
-                                    ) : (
-                                        <div className="text-gray">
-                                            {formData.documents?.length > 0 && !uploadedFile ? (
-                                                <p className="text-primary mb-xs">📄 Documento já anexado (Arraste outro para substituir)</p>
-                                            ) : (
-                                                <p>📂 Arraste um arquivo ou clique aqui</p>
-                                            )}
-                                        </div>
-                                    )}
+                            {/* Área de Documentos (NOVA) */}
+                            <div className="mt-lg border-t pt-md">
+                                <h3 className="text-sm font-bold text-gray-700 mb-sm uppercase">📂 Documentos e Contratos</h3>
+
+                                {/* Lista de Documentos Existentes */}
+                                {formData.documents && formData.documents.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-xs mb-md max-h-40 overflow-y-auto">
+                                        {formData.documents.map((doc, index) => (
+                                            <div key={index} className="flex items-center justify-between p-sm bg-gray-50 rounded border border-gray-200">
+                                                <div className="flex items-center gap-sm overflow-hidden">
+                                                    <span className="text-xl">📄</span>
+                                                    <a href={doc.url} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline truncate" title={doc.name}>
+                                                        {doc.name}
+                                                    </a>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newDocs = formData.documents.filter((_, i) => i !== index)
+                                                        setFormData({ ...formData, documents: newDocs })
+                                                    }}
+                                                    className="text-danger hover:bg-red-50 p-xs rounded"
+                                                    title="Remover documento"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-400 italic mb-md">Nenhum documento anexado.</p>
+                                )}
+
+                                {/* Dropzone para NOVOS arquivos */}
+                                <div className="input-group">
+                                    <label className="input-label text-xs">Adicionar Documento (PDF/Imagem)</label>
+                                    <div {...getRootProps()} className={`border-2 border-dashed rounded p-md text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary-light' : 'border-gray-300 hover:border-primary'}`} style={{ background: isDragActive ? '#f0f9ff' : '#fff' }}>
+                                        <input {...getInputProps()} />
+                                        {uploadedFile ? (
+                                            <div className="text-success font-medium flex flex-col items-center">
+                                                <span className="text-2xl mb-xs">✅</span>
+                                                <span>{uploadedFile.name}</span>
+                                                <span className="text-xs text-gray-500 mt-xs">Será salvo ao clicar no botão abaixo</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center py-sm">
+                                                <span className="text-2xl text-gray-300 mb-xs">☁️</span>
+                                                <span className="text-gray-600 text-sm">Clique ou arraste para adicionar</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex justify-center gap-md mt-lg">
+                            <div className="flex justify-center gap-md mt-lg pt-md border-t">
                                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)} disabled={uploading}>Cancelar</button>
                                 <button type="submit" className="btn btn-primary" disabled={uploading}>
-                                    {uploading ? 'Salvando...' : (editingId ? 'Atualizar Morador' : 'Salvar Morador')}
+                                    {uploading ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Cadastrar Morador')}
                                 </button>
                             </div>
                         </form>
