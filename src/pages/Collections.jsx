@@ -605,7 +605,7 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
             {/* Modal de Checklist PREMIUM */}
             {showChecklistModal && (
                 <div className="modal-overlay">
-                    <div className="modal" style={{ maxWidth: '700px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}>
+                    <div className="modal" style={{ maxWidth: '700px', maxHeight: '90vh', borderRadius: '16px', overflow: 'hidden', padding: 0, display: 'flex', flexDirection: 'column' }}>
 
                         {/* Header com Gradiente */}
                         <div style={{
@@ -673,7 +673,7 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
                             </div>
                         </div>
 
-                        <div style={{ padding: '32px 40px' }}>
+                        <div style={{ padding: '32px 40px', overflowY: 'auto', flex: 1 }}>
                             {/* Card de Resumo do Devedor */}
                             <div style={{
                                 background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
@@ -922,7 +922,7 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
             {/* Modal Create Process PREMIUM */}
             {showProcessModal && (
                 <div className="modal-overlay">
-                    <div className="modal" style={{ maxWidth: '650px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}>
+                    <div className="modal" style={{ maxWidth: '650px', maxHeight: '90vh', borderRadius: '16px', overflow: 'hidden', padding: 0, display: 'flex', flexDirection: 'column' }}>
 
                         {/* Header com Gradiente */}
                         <div style={{
@@ -973,7 +973,7 @@ O atraso no pagamento compromete o fluxo de caixa do condomínio e onera os dema
                             </div>
                         </div>
 
-                        <div style={{ padding: '32px 40px' }}>
+                        <div style={{ padding: '32px 40px', overflowY: 'auto', flex: 1 }}>
                             {/* Resumo do Devedor */}
                             <div style={{
                                 background: '#fef2f2',
